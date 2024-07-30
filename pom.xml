@@ -10,10 +10,10 @@
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>usco.edu.co</groupId>
-	<artifactId>restaurante_ventanilla</artifactId>
+	<artifactId>restaurante_web</artifactId>
 	<version>1.0</version>
 	<packaging>war</packaging>
-	<name>restaurante_ventanilla</name>
+	<name>restaurante_web</name>
 	<description>Sistema ventanilla restaurante universitario</description>
 
 	<properties>

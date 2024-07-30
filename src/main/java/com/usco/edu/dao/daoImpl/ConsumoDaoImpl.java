@@ -29,7 +29,7 @@ public class ConsumoDaoImpl implements IConsumoDao {
 	private AuditoriaJdbcTemplate jdbcComponent;
 
 	@Autowired
-	@Qualifier("JDBCTemplatePlanesConsulta")
+	@Qualifier("JDBCTemplateConsulta")
 	public JdbcTemplate jdbcTemplate;
 
 	@Autowired

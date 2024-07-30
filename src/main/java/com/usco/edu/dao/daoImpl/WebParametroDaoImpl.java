@@ -20,7 +20,7 @@ import com.usco.edu.resultSetExtractor.WebParametroSetExtractor;
 public class WebParametroDaoImpl implements IWebParametroDao {
 
 	@Autowired
-	@Qualifier("JDBCTemplatePlanesConsulta")
+	@Qualifier("JDBCTemplateConsulta")
 	public JdbcTemplate jdbcTemplate;
 
 	@Autowired

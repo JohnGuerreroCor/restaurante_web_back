@@ -7,10 +7,10 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @EnableFeignClients
 @SpringBootApplication
-public class CarnetUsuarioApplication {
+public class RestauranteWebApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(CarnetUsuarioApplication.class, args);
+		SpringApplication.run(RestauranteWebApplication.class, args);
 	}
 	
 

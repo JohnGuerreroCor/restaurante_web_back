@@ -29,7 +29,7 @@ import com.usco.edu.resultSetExtractor.TicketSetExtractor;
 public class PublicoDaoImpl implements IPublicoDao {
 	
 	@Autowired
-	@Qualifier("JDBCTemplatePlanesConsulta")
+	@Qualifier("JDBCTemplateConsulta")
 	public JdbcTemplate jdbcTemplate;
 
 	@Override

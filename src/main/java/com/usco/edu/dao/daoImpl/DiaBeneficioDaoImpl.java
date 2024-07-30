@@ -28,7 +28,7 @@ public class DiaBeneficioDaoImpl implements IDiaBeneficioDao {
 	private AuditoriaJdbcTemplate jdbcComponent;
 
 	@Autowired
-	@Qualifier("JDBCTemplatePlanesConsulta")
+	@Qualifier("JDBCTemplateConsulta")
 	public JdbcTemplate jdbcTemplate;
 
 	@Override

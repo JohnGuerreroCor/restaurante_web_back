@@ -13,12 +13,12 @@ import com.usco.edu.rowMapper.UsuarioRowMapper;
 public class UsuarioDaoImpl implements IUsuarioDao {
 
 	@Autowired
-	@Qualifier("JDBCTemplatePlanesLogin")
+	@Qualifier("JDBCTemplateLogin")
 	public JdbcTemplate jdbcTemplate;
 
 	@Override
 	public Usuario findByUsername(String username) {
-		String sql = "select top 1 * from usuario_sibusco_restaurante_login usrl "
+		String sql = "select top 1 *, GETDATE() as horaInicioSesion from usuario_sibusco_restaurante_login usrl "
 				+ "inner join uaa u on u.uaa_codigo = usrl.usg_uaa "
 				+ "inner join sede s on s.sed_codigo = u.sed_codigo "
 				+ "inner join persona p on p.per_codigo = usrl.up where  usrl.us = ? and usrl.gru_codigo = 136";

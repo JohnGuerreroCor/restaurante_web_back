@@ -11,7 +11,7 @@ import com.usco.edu.dao.IDocumentoDao;
 public class DocumentoDaoImpl implements IDocumentoDao {
 
 	@Autowired
-	@Qualifier("JDBCTemplatePlanesConsulta")
+	@Qualifier("JDBCTemplateConsulta")
 	public JdbcTemplate jdbcTemplate;
 
 	@Override
