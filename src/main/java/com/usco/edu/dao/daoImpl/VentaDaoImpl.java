@@ -56,17 +56,34 @@ public class VentaDaoImpl implements IVentaDao {
 				+ "INNER JOIN sibusco.restaurante_contrato rc ON rc.rco_codigo = rev.rco_codigo "
 				+ "INNER JOIN sibusco.restaurante_tipo_contrato rtc ON rtc.rtc_codigo = rc.rtc_codigo "
 				+ "INNER JOIN dbo.uaa u ON u.uaa_codigo = rev.uaa_codigo " + "WHERE rev.per_codigo = " + codigoPersona
-				+ " " + "AND rev.rco_codigo = " + codigoContrato + " AND rev.rve_estado = 1 "
+				+ " " + "AND rev.rco_codigo = " + codigoContrato + " AND rev.rve_estado = 1 " + " AND rev.rve_eliminado = 1 "
 				+ "ORDER BY rev.rve_fecha ASC";
 		return jdbcTemplate.query(sql, new VentaSetExtractor());
 	}
 	
 	@Override
-	public int obtenerVentasDiarias(int tipoServicio, int codigoContrato) {
+	public int obtenerVentasDiariasOrdinarias(int tipoServicio, int codigoContrato) {
 		String sql = "SELECT COUNT(*) AS cantidad_registros FROM sibusco.restaurante_venta rv "
+		        + "	LEFT JOIN sibusco.restaurante_grupo_gabu rgg ON rv.per_codigo = rgg.per_codigo "
+		        + "	WHERE rv.rts_codigo = " + tipoServicio
+		        + " AND rv.rve_eliminado = 1 "
+		        + " AND rv.rco_codigo = " + codigoContrato
+		        + " AND rv.rve_fecha = CONVERT(DATE, GETDATE()) "
+		        + " AND rgg.per_codigo IS NULL";
+
+		
+		int cantidadRegistros = jdbcTemplate.queryForObject(sql, Integer.class);
+		
+		return cantidadRegistros;
+	}
+	
+	@Override
+	public int obtenerVentasDiariasGabus(int tipoServicio, int codigoContrato) {
+		String sql = "SELECT COUNT(*) AS cantidad_registros FROM sibusco.restaurante_venta rv "
+				+ " INNER JOIN sibusco.restaurante_grupo_gabu rgg ON rv.per_codigo = rgg.per_codigo "
 				+ " WHERE rv.rts_codigo = " + tipoServicio
-				+ " AND rv.rco_codigo = " + codigoContrato
-				+ " AND rv.rve_estado = 1 "
+				+ " AND rv.rve_eliminado = 1 "
+				+ " AND rv.rco_codigo = " + codigoContrato + " "
 				+ " AND rv.rve_fecha = CONVERT(DATE, GETDATE())";
 		
 		int cantidadRegistros = jdbcTemplate.queryForObject(sql, Integer.class);
@@ -91,9 +108,9 @@ public class VentaDaoImpl implements IVentaDao {
 	            + ") < @cantidad_tiquetes "
 	            + "BEGIN "
 	            + "    INSERT INTO sibusco.restaurante_venta "
-	            + "        (per_codigo, rts_codigo, rco_codigo, uaa_codigo, rve_estado, rve_fecha, rve_hora) "
+	            + "        (per_codigo, rts_codigo, rco_codigo, uaa_codigo, rve_estado, rve_fecha, rve_hora, rve_eliminado) "
 	            + "    VALUES "
-	            + "        (?, ?, ?, ?, ?, CONVERT(DATE, GETDATE()), CONVERT(TIME, GETDATE())); "
+	            + "        (?, ?, ?, ?, ?, CONVERT(DATE, GETDATE()), CONVERT(TIME, GETDATE()), ?); "
 	            + "    SELECT 1; "
 	            + "END "
 	            + "ELSE "
@@ -118,6 +135,7 @@ public class VentaDaoImpl implements IVentaDao {
 	            preparedStatement.setInt(8, venta.getContrato().getCodigo());
 	            preparedStatement.setInt(9, venta.getDependencia().getCodigo());
 	            preparedStatement.setInt(10, venta.getEstado());
+	            preparedStatement.setInt(11, venta.getEliminado());
 
 	            // Ejecuta la consulta preparada
 	            int result = preparedStatement.executeUpdate();
@@ -143,6 +161,23 @@ public class VentaDaoImpl implements IVentaDao {
 		try {
 
 			int result = jdbcTemplateEjecucion.update(sql, new Object[] { venta.getEstado(), venta.getCodigo(), });
+
+			return result;
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			return 0;
+		}
+	}
+	
+	@Override
+	public int eliminarVenta(String userdb, Venta venta) {
+
+		String sql = "UPDATE sibusco.restaurante_venta " + "SET rve_estado=?, rve_eliminado=? " + "WHERE rve_codigo=?";
+
+		try {
+
+			int result = jdbcTemplateEjecucion.update(sql, new Object[] { venta.getEstado(), venta.getEliminado(), venta.getCodigo(), });
 
 			return result;
 

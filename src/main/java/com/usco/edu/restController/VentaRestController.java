@@ -33,9 +33,14 @@ public class VentaRestController {
 		return ventaService.obtenerVentasByPerCodigo(username, codigoPersona, codigoContrato);
 	}
 
-	@GetMapping(path = "obtener-ventas-diarias/{codigoTipoServicio}/{CodigoContrato}")
+	@GetMapping(path = "obtener-ventas-diarias-ordinarias/{codigoTipoServicio}/{CodigoContrato}")
 	public int obtenerVentasDiarias(@PathVariable int codigoTipoServicio, @PathVariable int CodigoContrato) {
-		return ventaService.obtenerVentasDiarias(codigoTipoServicio, CodigoContrato);
+		return ventaService.obtenerVentasDiariasOrdinarias(codigoTipoServicio, CodigoContrato);
+	}
+	
+	@GetMapping(path = "obtener-ventas-diarias-gabus/{codigoTipoServicio}/{CodigoContrato}")
+	public int obtenerVentasDiariasGabus(@PathVariable int codigoTipoServicio, @PathVariable int CodigoContrato) {
+		return ventaService.obtenerVentasDiariasGabus(codigoTipoServicio, CodigoContrato);
 	}
 
 	@PostMapping(path = "crear-ventas/{username}")
@@ -51,5 +56,10 @@ public class VentaRestController {
 	@PutMapping(path = "actualizar-venta/{username}")
 	public int actualizarVenta(@PathVariable String username, @RequestBody Venta venta) {
 		return ventaService.actualizarVenta(username, venta);
+	}
+	
+	@PutMapping(path = "eliminar-venta/{username}")
+	public int eliminarVenta(@PathVariable String username, @RequestBody Venta venta) {
+		return ventaService.eliminarVenta(username, venta);
 	}
 }
