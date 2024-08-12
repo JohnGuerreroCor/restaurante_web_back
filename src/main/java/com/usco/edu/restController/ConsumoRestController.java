@@ -32,7 +32,7 @@ import com.usco.edu.service.IHorarioServicioService;
 import com.usco.edu.service.IPersonaService;
 import com.usco.edu.service.IVentaService;
 import com.usco.edu.service.IWebParametroService;
-import com.usco.edu.service.serviceImpl.CustomRSAServiceImpl;
+import com.usco.edu.service.serviceImpl.CustomAESServiceImpl;
 import com.usco.edu.service.serviceImpl.EncryptDecryptServiceImpl;
 
 @RestController
@@ -61,7 +61,7 @@ public class ConsumoRestController {
 	EncryptDecryptServiceImpl encryptDecryptServiceImpl;
 	
 	@Autowired
-	CustomRSAServiceImpl customRSAService;
+	CustomAESServiceImpl customRSAService;
 
 	@GetMapping(path = "ejemplo")
 	public boolean ejemplo() {

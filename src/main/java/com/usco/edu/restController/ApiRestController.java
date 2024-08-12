@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.usco.edu.service.serviceImpl.CustomRSAServiceImpl;
+import com.usco.edu.service.serviceImpl.CustomAESServiceImpl;
 import com.usco.edu.service.serviceImpl.EncryptDecryptServiceImpl;
 
 import java.math.BigInteger;
@@ -23,7 +23,7 @@ public class ApiRestController {
 	EncryptDecryptServiceImpl encryptDecryptServiceImpl;
 
 	@Autowired
-	CustomRSAServiceImpl customRSAService;
+	CustomAESServiceImpl customAESService;
 
 	private static KeyPair keyPair; // Almacena el par de claves
 
@@ -67,13 +67,13 @@ public class ApiRestController {
 		// Encriptar el mensaje
 		BigInteger message = new BigInteger(plainString.getBytes());
 		System.out.println("-----------------------------------------------------------------");
-		BigInteger encryptedMessage = customRSAService.encrypt(message);
+		BigInteger encryptedMessage = customAESService.encrypt(message);
 		System.out.println("Mensaje encriptado BIGINTEGER: " + encryptedMessage);
 		System.out.println("Mensaje encriptado STRING: " + encryptedMessage.toString());
 		System.out.println("-----------------------------------------------------------------");
 
 		// Desencriptar el mensaje encriptado
-		BigInteger decryptedMessage = customRSAService.decrypt(encryptedMessage);
+		BigInteger decryptedMessage = customAESService.decrypt(encryptedMessage);
 		System.out.println("Mensaje desencriptado: " + decryptedMessage);
 		String decryptedString = new String(decryptedMessage.toByteArray());
 		System.out.println("Mensaje desencriptado como cadena: " + decryptedString);
@@ -83,7 +83,7 @@ public class ApiRestController {
 
 	@PostMapping("/decrypt")
 	public String decryptMessage(@RequestBody String encryptString) {
-		return customRSAService.decrypt(new BigInteger(encryptString)).toString(); // Decrypt the message
+		return customAESService.decrypt(new BigInteger(encryptString)).toString(); // Decrypt the message
 	}
 
 }
