@@ -3,9 +3,7 @@ package com.usco.edu.dao.daoImpl;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import javax.sql.DataSource;
@@ -16,15 +14,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
-import org.springframework.stereotype.Service;
+
 
 import com.usco.edu.dao.IVentaDao;
-import com.usco.edu.entities.DiaBeneficio;
 import com.usco.edu.entities.Venta;
-import com.usco.edu.resultSetExtractor.HorarioServicioSetExtractor;
 import com.usco.edu.resultSetExtractor.VentaSetExtractor;
 import com.usco.edu.util.AuditoriaJdbcTemplate;
 
@@ -57,7 +51,7 @@ public class VentaDaoImpl implements IVentaDao {
 				+ "INNER JOIN sibusco.restaurante_tipo_contrato rtc ON rtc.rtc_codigo = rc.rtc_codigo "
 				+ "INNER JOIN dbo.uaa u ON u.uaa_codigo = rev.uaa_codigo " + "WHERE rev.per_codigo = " + codigoPersona
 				+ " " + "AND rev.rco_codigo = " + codigoContrato + " AND rev.rve_estado = 1 " + " AND rev.rve_eliminado = 1 "
-				+ "ORDER BY rev.rve_fecha ASC";
+				+ "ORDER BY rev.rve_fecha DESC";
 		return jdbcTemplate.query(sql, new VentaSetExtractor());
 	}
 	

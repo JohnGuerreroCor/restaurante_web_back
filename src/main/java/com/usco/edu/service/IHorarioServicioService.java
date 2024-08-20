@@ -13,4 +13,6 @@ public interface IHorarioServicioService {
 	public int crearHorarioServicio(String userdb, HorarioServicio horarioServicio);
 
 	public int actualizarHorarioServicio(String userdb, HorarioServicio horarioServicio);
+	
+	public HorarioServicio obtenerTipoServicioActual(int uaa);
 }

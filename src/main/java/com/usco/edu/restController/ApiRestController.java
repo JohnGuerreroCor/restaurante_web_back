@@ -7,8 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.usco.edu.service.serviceImpl.CustomAESServiceImpl;
-import com.usco.edu.service.serviceImpl.EncryptDecryptServiceImpl;
+import com.usco.edu.service.serviceImpl.EncrypDecryptService;
 
 import java.math.BigInteger;
 import java.security.KeyPair;
@@ -20,10 +19,7 @@ import java.util.Date;
 public class ApiRestController {
 
 	@Autowired
-	EncryptDecryptServiceImpl encryptDecryptServiceImpl;
-
-	@Autowired
-	CustomAESServiceImpl customAESService;
+	EncrypDecryptService customAESService;
 
 	private static KeyPair keyPair; // Almacena el par de claves
 
@@ -44,11 +40,6 @@ public class ApiRestController {
 	public boolean ejemplo() {
 
 		return true;
-	}
-
-	@GetMapping("/createKeys")
-	public void createPrivatePublickey() {
-		encryptDecryptServiceImpl.createKeys();
 	}
 
 	@PostMapping("/encrypt")

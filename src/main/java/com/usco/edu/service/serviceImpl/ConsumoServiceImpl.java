@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import com.usco.edu.dao.IConsumoDao;
 import com.usco.edu.entities.Consumo;
+import com.usco.edu.entities.Qr;
 import com.usco.edu.service.IConsumoService;
 
 @Service
@@ -26,8 +27,8 @@ public class ConsumoServiceImpl implements IConsumoService {
 	}
 
 	@Override
-	public int registrarConsumo(String userdb, Consumo consumo, int percodigo, int tipoServicio) {
-		return ConsumoDao.registrarConsumo(userdb, consumo, percodigo, tipoServicio);
+	public int registrarConsumo(String username, int uaaCodigo, Qr qr) {
+		return ConsumoDao.registrarConsumo(username, uaaCodigo, qr);
 	}
 
 	@Override

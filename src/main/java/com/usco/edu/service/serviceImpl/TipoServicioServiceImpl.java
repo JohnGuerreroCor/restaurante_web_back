@@ -13,24 +13,20 @@ import com.usco.edu.service.ITipoServicioService;
 public class TipoServicioServiceImpl implements ITipoServicioService {
 
 	@Autowired
-	private ITipoServicioDao tipoContratoDao;
+	private ITipoServicioDao tipoServicioDao;
 
 	@Override
 	public List<TipoServicio> obtenerTiposServicio(String userdb) {
-		System.out.println("entramos correctamente actualizar tipo servicio " + userdb);
-		return tipoContratoDao.obtenerTiposServicio(userdb);
+		return tipoServicioDao.obtenerTiposServicio(userdb);
 	}
 
 	@Override
 	public int actualizarTipoServicio(String userdb, TipoServicio tipoServicio) {
-		System.out.println("entramos correctamente actualizar tipo servicio " + userdb + " " + tipoContratoDao);
-		return tipoContratoDao.actualizarTipoServicio(userdb, tipoServicio);
+		return tipoServicioDao.actualizarTipoServicio(userdb, tipoServicio);
 	}
 
 	@Override
 	public int crearTipoServicio(String userdb, TipoServicio tipoServicio) {
-		System.out.println("entramos correctamente actualizar tipo servicio " + userdb + " " + tipoContratoDao);
-		return tipoContratoDao.crearTipoServicio(userdb, tipoServicio);
+		return tipoServicioDao.crearTipoServicio(userdb, tipoServicio);
 	}
-
 }

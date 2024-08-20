@@ -14,10 +14,10 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
-import org.springframework.stereotype.Service;
 
 import com.usco.edu.dao.IHorarioServicioDao;
 import com.usco.edu.entities.HorarioServicio;
+import com.usco.edu.entities.TipoServicio;
 import com.usco.edu.resultSetExtractor.HorarioServicioSetExtractor;
 import com.usco.edu.util.AuditoriaJdbcTemplate;
 
@@ -132,6 +132,20 @@ public class HorarioServicioDaoImpl implements IHorarioServicioDao {
 			}
 		}
 	}
+	
+	@Override
+	public HorarioServicio obtenerTipoServicioActual(int uaa) throws NullPointerException {
+		String sql = "SELECT * "
+				+ "FROM sibusco.restaurante_horario_servicio rhs "
+				+ "INNER JOIN sibusco.restaurante_tipo_servicio rts ON rts.rts_codigo = rhs.rts_codigo "
+				+ "INNER JOIN dbo.uaa u ON u.uaa_codigo = rhs.rhs_uaa_codigo "
+				+ "WHERE CONVERT(TIME, GETDATE()) >= rhs.rhs_hora_inicio_atencion "
+				+ "  AND CONVERT(TIME, GETDATE()) <= rhs.rhs_hora_fin_atencion "
+				+ "  AND rhs.rhs_uaa_codigo = " + uaa + " ;";
+		return jdbcTemplate.query(sql, new HorarioServicioSetExtractor()).get(0);
+	}
+
+	
 
 	private void cerrarConexion(Connection con) {
 		if (con == null)

@@ -3,6 +3,7 @@ package com.usco.edu.service;
 import java.util.List;
 
 import com.usco.edu.entities.Consumo;
+import com.usco.edu.entities.Qr;
 
 public interface IConsumoService {
 
@@ -10,7 +11,7 @@ public interface IConsumoService {
 	
 	public int obtenerConsumosDiarios(int tipoServicio, int codigoContrato);
 
-	public int registrarConsumo(String userdb, Consumo consumo, int percodigo, int tipoServicio);
+	public int registrarConsumo(String username, int uaaCodigo, Qr qr);
 	
 	public List<Long> cargarConsumos(String userdb, List<Consumo> consumos);
 

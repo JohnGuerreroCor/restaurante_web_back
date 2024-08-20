@@ -1,8 +1,12 @@
 package com.usco.edu.dao.daoImpl;
 
+import java.math.BigInteger;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Time;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -19,7 +23,18 @@ import org.springframework.stereotype.Repository;
 
 import com.usco.edu.dao.IConsumoDao;
 import com.usco.edu.entities.Consumo;
+import com.usco.edu.entities.Contrato;
+import com.usco.edu.entities.Dependencia;
+import com.usco.edu.entities.HorarioServicio;
+import com.usco.edu.entities.Persona;
+import com.usco.edu.entities.Qr;
+import com.usco.edu.entities.TipoServicio;
+import com.usco.edu.entities.Venta;
 import com.usco.edu.resultSetExtractor.ConsumoSetExtractor;
+import com.usco.edu.service.IContratoService;
+import com.usco.edu.service.IHorarioServicioService;
+import com.usco.edu.service.IVentaService;
+import com.usco.edu.service.IWebParametroService;
 import com.usco.edu.util.AuditoriaJdbcTemplate;
 
 @Repository
@@ -37,10 +52,24 @@ public class ConsumoDaoImpl implements IConsumoDao {
 	public JdbcTemplate jdbcTemplateEjecucion;
 	
 	@Autowired
-	private NamedParameterJdbcTemplate jdbc; // Add this line to autowire NamedParameterJdbcTemplate
+	private NamedParameterJdbcTemplate jdbc; 
 
 	@Autowired
-	private DataSource dataSource; // Add this line to autowire DataSource
+	private DataSource dataSource; 
+	
+	@Autowired
+	private IWebParametroService webParametroService;
+	
+	@Autowired
+	private IContratoService contratoService;
+	
+	@Autowired
+	private IHorarioServicioService horarioServicioService;
+	
+	@Autowired
+	private IVentaService ventaService;
+	
+	
 
 	@Override
 	public List<Consumo> obtenerConsumoByPerCodigo(String userdb, int codigoPersona, int codigoContrato) {
@@ -78,54 +107,348 @@ public class ConsumoDaoImpl implements IConsumoDao {
 		
 		return cantidadRegistros;
 	}
+	
+	private String[] extraerDatosQr(Qr qr) {
+		String[] arregloDeDatos = obtenerArrayDatos(qr.getMensajeEncriptado());
+		
+		// Imprimir los datos resultantes
+		for (String dato : arregloDeDatos) {
+			System.out.println(dato);
+		}
+		
+		return arregloDeDatos;
+		
+	}
+	
 
 	@Override
-	public int registrarConsumo(String userdb, Consumo consumo, int percodigo, int tipoServicio ) {
+	public int registrarConsumo(String username, int uaaCodigo, Qr qr ) {
 		
-		/**
-		String sql = "INSERT INTO sibusco.restaurante_consumo "
-				+ "(per_codigo, rve_codigo, rts_codigo, rco_codigo, uaa_codigo, rcn_estado, rcn_fecha, rcn_hora) "
-				+ "VALUES(?, ?, ?, ?, ?, ?, ?, ?);";
-				**/
+		String[] datosQr = extraerDatosQr(qr);
 		
-		Date fechaHoraActual = new Date();
-		SimpleDateFormat formatoFecha = new SimpleDateFormat("yyyy-MM-dd");
-		String fechaFormateada = formatoFecha.format(fechaHoraActual);
+		if (datosQr == null) {
+			return -5; 
+		}
 		
-		String sql = "IF NOT EXISTS ( "
-				+ "SELECT * "
-				+ "FROM sibusco.restaurante_consumo "
-				+ "WHERE per_codigo = " + percodigo + " "
-				+ "AND rts_codigo = " + tipoServicio + " "
-				+ "AND rcn_fecha = CONVERT(DATE, GETDATE()) "
-				//+ "AND CONVERT(DATE, '" + fechaFormateada + "') = CONVERT(DATE, GETDATE()) "
-				+ ") "
-				+ "BEGIN "
-				+ "INSERT INTO sibusco.restaurante_consumo "
-				+ "(per_codigo, rve_codigo, rts_codigo, rco_codigo, uaa_codigo, rcn_estado, rcn_fecha, rcn_hora) "
-				+ "VALUES(?, ?, ?, ?, ?, ?, ?, ?) "
-				+ "END";
+		int percodigo = Integer.parseInt(datosQr[0]);
+		String fechaHoraCliente = datosQr[1];
+		
+		Boolean isQRValido = this.validarQR(fechaHoraCliente);
+		
+		if (!isQRValido) {
+			System.out.println("EL QR leido está vencido o es de caracter invalido!");
+			return -2;
+		} 
+		
+		String[] fechaHoraActualFormateada = this.ObtenerFechaHoraActualFormateada(); 
+		
+		String fechaFormateada = fechaHoraActualFormateada[0];
+		String horaFormateada = fechaHoraActualFormateada[1];
 
+		List<Contrato> contratoVigente = this.obtenerContratoVigente(username, uaaCodigo);
+		
+		if (contratoVigente.isEmpty()) {
+			return -3;
+		}
+		
+		List<HorarioServicio> horarioServicio = this.horarioServicioService.obtenerHorarioServicio(username,
+				uaaCodigo);
+		
+		if (horarioServicio.isEmpty()) {
+			System.out.println("No se pudo obtener horario servicio");
+			return -6;
+		}
+		
+		int tipoServicioActual = obtenerTipoServicioActual(uaaCodigo);
+		
+		System.out.println("resultado tipo servicio:  " + tipoServicioActual );
+		
+		if (tipoServicioActual==-8) {
+			System.out.println("Error tipo servicio");
+			return -8;
+		}
+		
+		
+		List<Venta> ventaMasReciente = this.ventaService.obtenerVentasByPerCodigo(username, percodigo,
+				contratoVigente.get(0).getCodigo());
+
+		if (ventaMasReciente.isEmpty()) {
+			System.out.println("El ususario no tiene tiquetes disponibles!");
+			return -4;
+		}
+		
+		Boolean isFechaVentaVigente = this.validarFechaTiqueteVenta(ventaMasReciente.get(0));
+		
+		if (!isFechaVentaVigente) {
+			System.out.println("Tiquete vencido, el tiquete ya caducó");
+			return -7;
+		}
+		
 		try {
+			
+			// ahora creo un consumo y asocio la venta al consumo creado, acto seguido
+			// desactivo dicha venta
+			Consumo consumo = this.crearConsumo(ventaMasReciente.get(0),contratoVigente, uaaCodigo, fechaFormateada,
+					horaFormateada, percodigo, tipoServicioActual, username);	
+		
+			
+			String sql = "IF NOT EXISTS ( "
+					+ "SELECT 1 "
+					+ "FROM sibusco.restaurante_consumo "
+					+ "WHERE per_codigo = ? "
+					+ "AND rts_codigo = ? "
+					+ "AND rcn_fecha = CONVERT(DATE, GETDATE()) "
+					+ ") "
+					+ "BEGIN "
+					+ "INSERT INTO sibusco.restaurante_consumo "
+					+ "(per_codigo, rve_codigo, rts_codigo, rco_codigo, uaa_codigo, rcn_estado, rcn_fecha, rcn_hora) "
+					+ "VALUES(?, ?, ?, ?, ?, ?, ?, ?) "
+					+ "END";
 
-			int result = jdbcTemplateEjecucion.update(sql,
-					new Object[] { 
-							consumo.getPersona().getCodigo(), 
-							consumo.getVenta().getCodigo(),
-							consumo.getTipoServicio().getCodigo(),
-							consumo.getContrato().getCodigo(),
-							consumo.getDependencia().getCodigo(), 
-							consumo.getEstado(),
-							consumo.getFecha(), 
-							consumo.getHora() });
+			 int respuestaCreacionConsumo = jdbcTemplateEjecucion.update(sql,
+						new Object[] { 
+								percodigo,
+								tipoServicioActual,
+								consumo.getPersona().getCodigo(), 
+								consumo.getVenta().getCodigo(),
+								consumo.getTipoServicio().getCodigo(),
+								consumo.getContrato().getCodigo(),
+								consumo.getDependencia().getCodigo(), 
+								consumo.getEstado(),
+								consumo.getFecha(), 
+								consumo.getHora() });
+			 
+			 
+			 System.out.println(respuestaCreacionConsumo);
+			 
+				if (respuestaCreacionConsumo > 0) {
+					System.out.println("consumo creado!");
+				} else {
+					System.out.println("La persona ya consumió!");
+					return 0;
+				}
 
-			return result;
+				this.desactivarTiqueteVenta(respuestaCreacionConsumo, ventaMasReciente.get(0), username);
+			 
+			 return respuestaCreacionConsumo;
 
 		} catch (Exception e) {
 			e.printStackTrace();
+			return -1000;
+		}
+	}
+	
+	private Boolean validarFechaTiqueteVenta(Venta venta) {
+	    
+	    LocalDate fechaActual = LocalDate.now();
+        
+        Date fechaTiquete = venta.getFecha(); 
+        LocalDate fechaTiqueteLocalDate = new java.sql.Date(fechaTiquete.getTime()).toLocalDate();
+		
+		return fechaTiqueteLocalDate.isEqual(fechaActual);
+	}
+	
+	
+	private int desactivarTiqueteVenta(int resConsumo, Venta ventaRealizada, String username) {
+		
+		if (resConsumo > 0) {
+			Venta ventaEnviar = new Venta();
+			ventaEnviar.setCodigo(ventaRealizada.getCodigo());
+			ventaEnviar.setEstado(0);
+			this.ventaService.actualizarVenta(username, ventaEnviar);
+			return 1;
+		} else {
+			System.out.println("error al desactivar tiquete venta!");
 			return 0;
 		}
 	}
+
+	
+	private Consumo crearConsumo(Venta ventaReciente, List<Contrato> contratoVigente, int uaa, String fechaFormateada,
+			String horaFormateada, int estudiante, int tipoServicioActual, String username
+			) throws ParseException {
+		
+		SimpleDateFormat formatoFecha = new SimpleDateFormat("yyyy-MM-dd");
+		SimpleDateFormat formatoHora = new SimpleDateFormat("HH:mm:ss");
+
+		if (ventaReciente != null) {
+
+			Consumo consumo = new Consumo();
+
+			Contrato contrato = new Contrato();
+			contrato.setCodigo(contratoVigente.get(0).getCodigo());
+			consumo.setContrato(contrato);
+			Dependencia dependencia = new Dependencia();
+			dependencia.setCodigo(uaa);
+			consumo.setDependencia(dependencia);
+			consumo.setEstado(1);
+
+			Date fechaEnviar = formatoFecha.parse(fechaFormateada);
+			java.sql.Date sqlDate = new java.sql.Date(fechaEnviar.getTime());
+			consumo.setFecha(sqlDate);
+			Date date = formatoHora.parse(horaFormateada);
+			long milisegundos = date.getTime();
+			Time horaEnviar = new Time(milisegundos);
+			consumo.setHora(horaEnviar);
+
+			Persona persona = new Persona();
+			persona.setCodigo(Long.valueOf(estudiante));
+			consumo.setPersona(persona);
+			TipoServicio tipoServicio = new TipoServicio();
+			tipoServicio.setCodigo(tipoServicioActual);
+			consumo.setTipoServicio(tipoServicio);
+			Venta venta = new Venta();
+			venta.setCodigo(ventaReciente.getCodigo());
+			consumo.setVenta(venta);
+
+			return consumo;
+
+		} else {
+			System.out.println("No se ha encontrado un tiquete con las caracteristicas validas para ser redimido!");
+			return null;
+		}
+	}
+	
+	private int obtenerTipoServicioActual(int uaa) {
+		
+		String tipoServicio = this.horarioServicioService.obtenerTipoServicioActual(uaa).getTipoServicio().getNombre();
+		System.out.println("nombre tipo servicio: " + tipoServicio);
+		int codigoTipoServicio = 0;
+
+		switch (tipoServicio.toLowerCase().trim()) {
+		    case "desayuno":
+		    	codigoTipoServicio = 1;
+		        break;
+		    case "almuerzo":
+		    	codigoTipoServicio = 2;
+		        break;
+		    case "cena":
+		    	codigoTipoServicio = 3;
+		        break;
+		    default:
+		    	codigoTipoServicio = -8;
+		        break;
+		}
+
+		return codigoTipoServicio;
+
+	}
+	
+	private List<Contrato> obtenerContratoVigente(String username, int uaaCodigo){
+		
+		String[] fechaHoraActualFormateada = this.ObtenerFechaHoraActualFormateada(); 
+
+		String fechaFormateada = fechaHoraActualFormateada[0];
+		
+	    List<Contrato> contratoVigente = this.contratoService.obtenerContratosByVigencia(username, uaaCodigo,
+				fechaFormateada);
+		
+		System.out.println("contrato vigente");
+		System.out.println(contratoVigente.get(0).getCodigo());
+		
+		return contratoVigente;
+		
+	}
+	
+	
+	private Boolean validarQR(String fechaHoraCliente) {
+
+		try {
+			
+			int validezQR = Integer.parseInt(this.webParametroService.obtenerWebParametro().get(1).getWebValor());
+			System.out.println("validezQR en segundos: ");
+			System.out.println(validezQR);
+
+			// Obtener la fecha y hora actual del servidor
+			Date currentFechaHora = new Date();
+
+			// Convertir la fecha del cliente a objeto Date
+			// Date fechaCliente = new Date(fechaHoraCliente);
+
+			SimpleDateFormat formato = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			Date fechaCliente;
+
+			try {
+				fechaCliente = formato.parse(fechaHoraCliente);
+				System.out.println("Fecha convertida: " + fechaCliente);
+			} catch (ParseException e) {
+				System.out.println("ERROR al transformar la fecha hora de un String a un objeto Date ");
+				e.printStackTrace();
+				return false;
+			}
+
+			// Calcular la fecha y hora límite
+			Date fechaLimite = new Date(fechaCliente.getTime() + validezQR * 1000);
+
+			// Comparar si la fecha del cliente es anterior a la fecha límite
+
+			System.out.println("Current fecha hora ");
+			System.out.println(currentFechaHora);
+			System.out.println("fecha generacion ");
+			System.out.println(fechaCliente);
+			System.out.println("fecha limite ");
+			System.out.println(fechaLimite);
+
+			boolean isQRValido = currentFechaHora.before(fechaLimite);
+
+			// Imprimir el resultado
+			System.out.println("¿La fecha actual es inferior a la fecha limite? " + isQRValido);
+			
+			return isQRValido;
+			
+		} catch (Exception e) {
+			System.out.println("Error al validar la expiracion del QR!");
+			e.printStackTrace();
+			return false;
+		}
+
+	}
+	
+	// UTILS
+	
+	private String[] obtenerArrayDatos(String stringEncriptado) {
+		try {
+			// Desencriptar el mensaje encriptado
+			BigInteger biginteger = new BigInteger(stringEncriptado);
+			System.out.println("Mensaje encriptado: " + biginteger);
+			String decryptedString = new String(biginteger.toByteArray());
+			System.out.println("Mensaje desencriptado como cadena: " + decryptedString);
+
+			// String textoDesencriptado = customRSAService.decrypt(new
+			// BigInteger(stringEncriptado)).toString();
+			String[] arregloDeDatos = decryptedString.split(",");
+			return arregloDeDatos;
+		} catch (Exception e) {
+			System.out.println("Error al desencriptar el QR!");
+			return null;
+		}
+	}
+	
+	private String[] ObtenerFechaHoraActualFormateada() {
+
+		try {
+			
+			SimpleDateFormat formatoFecha = new SimpleDateFormat("yyyy-MM-dd");
+			SimpleDateFormat formatoHora = new SimpleDateFormat("HH:mm:ss");
+			
+			// Obtener la fecha y hora actual del servidor
+			Date fechaHoraActual = new Date();
+
+			// Formatear la fecha y hora como una cadena
+			String fechaFormateada = formatoFecha.format(fechaHoraActual);
+			String horaFormateada = formatoHora.format(fechaHoraActual);
+
+			// System.out.println("fecha formateada");
+			// System.out.println(fechaFormateada);
+			return new String[] { fechaFormateada, horaFormateada };
+
+		} catch (Error e) {
+			System.out.println("Error al formatear la fecha y hora!");
+			return null;
+		}
+	}
+	
+	
 
 	@Override
 	public int actualizarConsumo(String userdb, Consumo consumo) {
