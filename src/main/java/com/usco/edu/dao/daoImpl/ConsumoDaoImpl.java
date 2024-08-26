@@ -111,11 +111,6 @@ public class ConsumoDaoImpl implements IConsumoDao {
 	private String[] extraerDatosQr(Qr qr) {
 		String[] arregloDeDatos = obtenerArrayDatos(qr.getMensajeEncriptado());
 		
-		// Imprimir los datos resultantes
-		for (String dato : arregloDeDatos) {
-			System.out.println(dato);
-		}
-		
 		return arregloDeDatos;
 		
 	}
@@ -136,7 +131,6 @@ public class ConsumoDaoImpl implements IConsumoDao {
 		Boolean isQRValido = this.validarQR(fechaHoraCliente);
 		
 		if (!isQRValido) {
-			System.out.println("EL QR leido está vencido o es de caracter invalido!");
 			return -2;
 		} 
 		
@@ -155,16 +149,12 @@ public class ConsumoDaoImpl implements IConsumoDao {
 				uaaCodigo);
 		
 		if (horarioServicio.isEmpty()) {
-			System.out.println("No se pudo obtener horario servicio");
 			return -6;
 		}
 		
 		int tipoServicioActual = obtenerTipoServicioActual(uaaCodigo);
 		
-		System.out.println("resultado tipo servicio:  " + tipoServicioActual );
-		
 		if (tipoServicioActual==-8) {
-			System.out.println("Error tipo servicio");
 			return -8;
 		}
 		
@@ -173,14 +163,12 @@ public class ConsumoDaoImpl implements IConsumoDao {
 				contratoVigente.get(0).getCodigo());
 
 		if (ventaMasReciente.isEmpty()) {
-			System.out.println("El ususario no tiene tiquetes disponibles!");
 			return -4;
 		}
 		
 		Boolean isFechaVentaVigente = this.validarFechaTiqueteVenta(ventaMasReciente.get(0));
 		
 		if (!isFechaVentaVigente) {
-			System.out.println("Tiquete vencido, el tiquete ya caducó");
 			return -7;
 		}
 		
@@ -219,18 +207,13 @@ public class ConsumoDaoImpl implements IConsumoDao {
 								consumo.getHora() });
 			 
 			 
-			 System.out.println(respuestaCreacionConsumo);
-			 
 				if (respuestaCreacionConsumo > 0) {
-					System.out.println("consumo creado!");
+					this.desactivarTiqueteVenta(respuestaCreacionConsumo, ventaMasReciente.get(0), username);
+					return percodigo;
 				} else {
-					System.out.println("La persona ya consumió!");
 					return 0;
 				}
 
-				this.desactivarTiqueteVenta(respuestaCreacionConsumo, ventaMasReciente.get(0), username);
-			 
-			 return respuestaCreacionConsumo;
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -258,7 +241,6 @@ public class ConsumoDaoImpl implements IConsumoDao {
 			this.ventaService.actualizarVenta(username, ventaEnviar);
 			return 1;
 		} else {
-			System.out.println("error al desactivar tiquete venta!");
 			return 0;
 		}
 	}
@@ -304,7 +286,6 @@ public class ConsumoDaoImpl implements IConsumoDao {
 			return consumo;
 
 		} else {
-			System.out.println("No se ha encontrado un tiquete con las caracteristicas validas para ser redimido!");
 			return null;
 		}
 	}
@@ -312,7 +293,6 @@ public class ConsumoDaoImpl implements IConsumoDao {
 	private int obtenerTipoServicioActual(int uaa) {
 		
 		String tipoServicio = this.horarioServicioService.obtenerTipoServicioActual(uaa).getTipoServicio().getNombre();
-		System.out.println("nombre tipo servicio: " + tipoServicio);
 		int codigoTipoServicio = 0;
 
 		switch (tipoServicio.toLowerCase().trim()) {
@@ -343,9 +323,6 @@ public class ConsumoDaoImpl implements IConsumoDao {
 	    List<Contrato> contratoVigente = this.contratoService.obtenerContratosByVigencia(username, uaaCodigo,
 				fechaFormateada);
 		
-		System.out.println("contrato vigente");
-		System.out.println(contratoVigente.get(0).getCodigo());
-		
 		return contratoVigente;
 		
 	}
@@ -356,8 +333,6 @@ public class ConsumoDaoImpl implements IConsumoDao {
 		try {
 			
 			int validezQR = Integer.parseInt(this.webParametroService.obtenerWebParametro().get(1).getWebValor());
-			System.out.println("validezQR en segundos: ");
-			System.out.println(validezQR);
 
 			// Obtener la fecha y hora actual del servidor
 			Date currentFechaHora = new Date();
@@ -370,9 +345,7 @@ public class ConsumoDaoImpl implements IConsumoDao {
 
 			try {
 				fechaCliente = formato.parse(fechaHoraCliente);
-				System.out.println("Fecha convertida: " + fechaCliente);
 			} catch (ParseException e) {
-				System.out.println("ERROR al transformar la fecha hora de un String a un objeto Date ");
 				e.printStackTrace();
 				return false;
 			}
@@ -382,22 +355,11 @@ public class ConsumoDaoImpl implements IConsumoDao {
 
 			// Comparar si la fecha del cliente es anterior a la fecha límite
 
-			System.out.println("Current fecha hora ");
-			System.out.println(currentFechaHora);
-			System.out.println("fecha generacion ");
-			System.out.println(fechaCliente);
-			System.out.println("fecha limite ");
-			System.out.println(fechaLimite);
-
 			boolean isQRValido = currentFechaHora.before(fechaLimite);
-
-			// Imprimir el resultado
-			System.out.println("¿La fecha actual es inferior a la fecha limite? " + isQRValido);
 			
 			return isQRValido;
 			
 		} catch (Exception e) {
-			System.out.println("Error al validar la expiracion del QR!");
 			e.printStackTrace();
 			return false;
 		}
@@ -410,16 +372,13 @@ public class ConsumoDaoImpl implements IConsumoDao {
 		try {
 			// Desencriptar el mensaje encriptado
 			BigInteger biginteger = new BigInteger(stringEncriptado);
-			System.out.println("Mensaje encriptado: " + biginteger);
 			String decryptedString = new String(biginteger.toByteArray());
-			System.out.println("Mensaje desencriptado como cadena: " + decryptedString);
 
 			// String textoDesencriptado = customRSAService.decrypt(new
 			// BigInteger(stringEncriptado)).toString();
 			String[] arregloDeDatos = decryptedString.split(",");
 			return arregloDeDatos;
 		} catch (Exception e) {
-			System.out.println("Error al desencriptar el QR!");
 			return null;
 		}
 	}
@@ -438,12 +397,11 @@ public class ConsumoDaoImpl implements IConsumoDao {
 			String fechaFormateada = formatoFecha.format(fechaHoraActual);
 			String horaFormateada = formatoHora.format(fechaHoraActual);
 
-			// System.out.println("fecha formateada");
-			// System.out.println(fechaFormateada);
+			// ("fecha formateada");
+			// (fechaFormateada);
 			return new String[] { fechaFormateada, horaFormateada };
 
 		} catch (Error e) {
-			System.out.println("Error al formatear la fecha y hora!");
 			return null;
 		}
 	}
@@ -548,9 +506,7 @@ public class ConsumoDaoImpl implements IConsumoDao {
 	            	totalSuccessful++;
 	            }
 	        }
-	        
-	        System.out.println(totalUnsuccessful);
-	        System.out.println(totalSuccessful);
+	      
 
 	        return registrosErrados;
 	    } catch (Exception e) {

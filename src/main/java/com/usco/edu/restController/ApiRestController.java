@@ -45,8 +45,6 @@ public class ApiRestController {
 	@PostMapping("/encrypt")
 	public String encryptMessage(@RequestBody String plainString) {
 
-		System.out.println("Agregando time signature");
-
 		Date fechaHoraActual = new Date();
 
 		// FORMATEAR LA FECHA Y HORA COMO UNA CADENA
@@ -57,17 +55,11 @@ public class ApiRestController {
 
 		// Encriptar el mensaje
 		BigInteger message = new BigInteger(plainString.getBytes());
-		System.out.println("-----------------------------------------------------------------");
 		BigInteger encryptedMessage = customAESService.encrypt(message);
-		System.out.println("Mensaje encriptado BIGINTEGER: " + encryptedMessage);
-		System.out.println("Mensaje encriptado STRING: " + encryptedMessage.toString());
-		System.out.println("-----------------------------------------------------------------");
 
 		// Desencriptar el mensaje encriptado
 		BigInteger decryptedMessage = customAESService.decrypt(encryptedMessage);
-		System.out.println("Mensaje desencriptado: " + decryptedMessage);
 		String decryptedString = new String(decryptedMessage.toByteArray());
-		System.out.println("Mensaje desencriptado como cadena: " + decryptedString);
 		return encryptedMessage.toString(); // Convertir el mensaje encriptado a una cadena y retornarlo
 
 	}

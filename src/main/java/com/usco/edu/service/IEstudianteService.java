@@ -8,5 +8,7 @@ public interface IEstudianteService {
 	public List<Estudiante> findByCodigo(String codigo);
 	
 	public List<Estudiante> buscarIdentificacion(String id);
+
+	public List<Estudiante> buscarPerCodigo(int perCodigo);
 	
 }

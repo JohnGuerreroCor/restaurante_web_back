@@ -50,7 +50,8 @@ public class VentaDaoImpl implements IVentaDao {
 				+ "INNER JOIN sibusco.restaurante_contrato rc ON rc.rco_codigo = rev.rco_codigo "
 				+ "INNER JOIN sibusco.restaurante_tipo_contrato rtc ON rtc.rtc_codigo = rc.rtc_codigo "
 				+ "INNER JOIN dbo.uaa u ON u.uaa_codigo = rev.uaa_codigo " + "WHERE rev.per_codigo = " + codigoPersona
-				+ " " + "AND rev.rco_codigo = " + codigoContrato + " AND rev.rve_estado = 1 " + " AND rev.rve_eliminado = 1 "
+				+ " " + "AND rev.rco_codigo = " + codigoContrato + " AND rev.rve_estado = 1 " 
+				+ "AND rev.rve_fecha = CONVERT(DATE, GETDATE()) " + " AND rev.rve_eliminado = 1 " //rev.rve_fecha = CONVERT(DATE, GETDATE()) valida fecha dia de hoy
 				+ "ORDER BY rev.rve_fecha DESC";
 		return jdbcTemplate.query(sql, new VentaSetExtractor());
 	}
@@ -99,6 +100,7 @@ public class VentaDaoImpl implements IVentaDao {
 	            + "    WHERE rv.per_codigo = ? "
 	            + "    AND rv.rts_codigo = ? "
 	            + "    AND rv.rve_estado = ? "
+	            + "	   AND rv.rve_fecha = CONVERT(DATE, GETDATE()) " //rev.rve_fecha = CONVERT(DATE, GETDATE()) valida fecha dia de hoy
 	            + ") < @cantidad_tiquetes "
 	            + "BEGIN "
 	            + "    INSERT INTO sibusco.restaurante_venta "

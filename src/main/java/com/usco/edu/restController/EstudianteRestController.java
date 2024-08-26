@@ -27,4 +27,9 @@ public class EstudianteRestController {
 		return estudianteservice.buscarIdentificacion(id);
 	}
 	
+	@GetMapping(path = "buscar-estudiante-percodigo/{percodigo}")
+	public List<Estudiante> buscarPerCodigo(@PathVariable int percodigo) {
+		return estudianteservice.buscarPerCodigo(percodigo);
+	}
+	
 }
