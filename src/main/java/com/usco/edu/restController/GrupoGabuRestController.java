@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.usco.edu.entities.GrupoGabu;
-import com.usco.edu.entities.GrupoGabuDiasBeneficio;
 import com.usco.edu.service.IGrupoGabuService;
 
 @RestController

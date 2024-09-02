@@ -27,6 +27,11 @@ public class ConsumoServiceImpl implements IConsumoService {
 	}
 
 	@Override
+	public int obtenerConsumosDiariosGabus(int tipoServicio, int codigoContrato) {
+		return ConsumoDao.obtenerConsumosDiariosGabus(tipoServicio, codigoContrato);
+	}
+	
+	@Override
 	public int registrarConsumo(String username, int uaaCodigo, Qr qr) {
 		return ConsumoDao.registrarConsumo(username, uaaCodigo, qr);
 	}

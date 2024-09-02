@@ -2,6 +2,7 @@ package com.usco.edu.dao.daoImpl;
 
 import java.math.BigInteger;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.text.ParseException;
@@ -16,9 +17,6 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.stereotype.Repository;
 
 import com.usco.edu.dao.IConsumoDao;
@@ -35,13 +33,10 @@ import com.usco.edu.service.IContratoService;
 import com.usco.edu.service.IHorarioServicioService;
 import com.usco.edu.service.IVentaService;
 import com.usco.edu.service.IWebParametroService;
-import com.usco.edu.util.AuditoriaJdbcTemplate;
 
 @Repository
 public class ConsumoDaoImpl implements IConsumoDao {
 
-	@Autowired
-	private AuditoriaJdbcTemplate jdbcComponent;
 
 	@Autowired
 	@Qualifier("JDBCTemplateConsulta")
@@ -50,12 +45,6 @@ public class ConsumoDaoImpl implements IConsumoDao {
 	@Autowired
 	@Qualifier("JDBCTemplateEjecucion")
 	public JdbcTemplate jdbcTemplateEjecucion;
-	
-	@Autowired
-	private NamedParameterJdbcTemplate jdbc; 
-
-	@Autowired
-	private DataSource dataSource; 
 	
 	@Autowired
 	private IWebParametroService webParametroService;
@@ -69,7 +58,10 @@ public class ConsumoDaoImpl implements IConsumoDao {
 	@Autowired
 	private IVentaService ventaService;
 	
-	
+    // Añadir método para obtener DataSource de JdbcTemplateEjecucion
+    private DataSource getDataSourceFromJdbcTemplate() {
+        return jdbcTemplateEjecucion.getDataSource();
+    }
 
 	@Override
 	public List<Consumo> obtenerConsumoByPerCodigo(String userdb, int codigoPersona, int codigoContrato) {
@@ -88,24 +80,39 @@ public class ConsumoDaoImpl implements IConsumoDao {
 				+ "INNER JOIN dbo.uaa u ON "
 				+ "	u.uaa_codigo = rcn.uaa_codigo "
 				+ "WHERE "
-				+ "	rcn.per_codigo = " + codigoPersona + " "
-				+ "	AND rcn.rco_codigo = " + codigoContrato + " "
+				+ "	rcn.per_codigo = ? "
+				+ "	AND rcn.rco_codigo = ? "
 				+ "	AND rcn.rcn_estado = 1;";
-		return jdbcTemplate.query(sql, new ConsumoSetExtractor());
+		return jdbcTemplate.query(sql, new Object[]{codigoPersona, codigoContrato}, new ConsumoSetExtractor());
 	}
 	
 	@Override
 	public int obtenerConsumosDiarios(int tipoServicio, int codigoContrato) {
 		
-		String sql = "SELECT COUNT(*) AS cantidad_registros FROM sibusco.restaurante_consumo rc "
-				+ "WHERE rc.rts_codigo = " + tipoServicio
-				+ "AND rc.rco_codigo = " + codigoContrato
-				+ "AND rc.rcn_estado = 1 "
-				+ "AND rc.rcn_fecha = CONVERT(DATE, GETDATE())";
+		String sql = "SELECT COUNT(*) AS cantidad_registros " +
+                "FROM sibusco.restaurante_consumo rc " +
+                "LEFT JOIN sibusco.restaurante_grupo_gabu rgg ON rc.per_codigo = rgg.per_codigo " +
+                "WHERE rc.rts_codigo = ? " +
+                "AND rc.rco_codigo = ? " +
+                "AND rc.rcn_estado = 1 " +
+                "AND rc.rcn_fecha = CONVERT(DATE, GETDATE()) " +
+                "AND rgg.per_codigo IS NULL;";
+
 		
-		int cantidadRegistros = jdbcTemplate.queryForObject(sql, Integer.class);
+		return jdbcTemplate.queryForObject(sql, new Object[]{tipoServicio, codigoContrato}, Integer.class);
+	}
+	
+	@Override
+	public int obtenerConsumosDiariosGabus(int tipoServicio, int codigoContrato) {
+		String sql = "SELECT COUNT(*) AS cantidad_registros " +
+                "FROM sibusco.restaurante_consumo rc " +
+                "INNER JOIN sibusco.restaurante_grupo_gabu rgg ON rc.per_codigo = rgg.per_codigo " +
+                "WHERE rc.rts_codigo = ? " +
+                "AND rc.rco_codigo = ? " +
+                "AND rc.rcn_estado = 1 " +
+                "AND rc.rcn_fecha = CONVERT(DATE, GETDATE());";
 		
-		return cantidadRegistros;
+		return jdbcTemplate.queryForObject(sql, new Object[]{tipoServicio, codigoContrato}, Integer.class);
 	}
 	
 	private String[] extraerDatosQr(Qr qr) {
@@ -117,109 +124,111 @@ public class ConsumoDaoImpl implements IConsumoDao {
 	
 
 	@Override
-	public int registrarConsumo(String username, int uaaCodigo, Qr qr ) {
-		
-		String[] datosQr = extraerDatosQr(qr);
-		
-		if (datosQr == null) {
-			return -5; 
-		}
-		
-		int percodigo = Integer.parseInt(datosQr[0]);
-		String fechaHoraCliente = datosQr[1];
-		
-		Boolean isQRValido = this.validarQR(fechaHoraCliente);
-		
-		if (!isQRValido) {
-			return -2;
-		} 
-		
-		String[] fechaHoraActualFormateada = this.ObtenerFechaHoraActualFormateada(); 
-		
-		String fechaFormateada = fechaHoraActualFormateada[0];
-		String horaFormateada = fechaHoraActualFormateada[1];
+	public int registrarConsumo(String username, int uaaCodigo, Qr qr) {
 
-		List<Contrato> contratoVigente = this.obtenerContratoVigente(username, uaaCodigo);
-		
-		if (contratoVigente.isEmpty()) {
-			return -3;
-		}
-		
-		List<HorarioServicio> horarioServicio = this.horarioServicioService.obtenerHorarioServicio(username,
-				uaaCodigo);
-		
-		if (horarioServicio.isEmpty()) {
-			return -6;
-		}
-		
-		int tipoServicioActual = obtenerTipoServicioActual(uaaCodigo);
-		
-		if (tipoServicioActual==-8) {
-			return -8;
-		}
-		
-		
-		List<Venta> ventaMasReciente = this.ventaService.obtenerVentasByPerCodigo(username, percodigo,
-				contratoVigente.get(0).getCodigo());
+	    String[] datosQr = extraerDatosQr(qr);
 
-		if (ventaMasReciente.isEmpty()) {
-			return -4;
-		}
-		
-		Boolean isFechaVentaVigente = this.validarFechaTiqueteVenta(ventaMasReciente.get(0));
-		
-		if (!isFechaVentaVigente) {
-			return -7;
-		}
-		
-		try {
-			
-			// ahora creo un consumo y asocio la venta al consumo creado, acto seguido
-			// desactivo dicha venta
-			Consumo consumo = this.crearConsumo(ventaMasReciente.get(0),contratoVigente, uaaCodigo, fechaFormateada,
-					horaFormateada, percodigo, tipoServicioActual, username);	
-		
-			
-			String sql = "IF NOT EXISTS ( "
-					+ "SELECT 1 "
-					+ "FROM sibusco.restaurante_consumo "
-					+ "WHERE per_codigo = ? "
-					+ "AND rts_codigo = ? "
-					+ "AND rcn_fecha = CONVERT(DATE, GETDATE()) "
-					+ ") "
-					+ "BEGIN "
-					+ "INSERT INTO sibusco.restaurante_consumo "
-					+ "(per_codigo, rve_codigo, rts_codigo, rco_codigo, uaa_codigo, rcn_estado, rcn_fecha, rcn_hora) "
-					+ "VALUES(?, ?, ?, ?, ?, ?, ?, ?) "
-					+ "END";
+	    if (datosQr == null) {
+	        return -5;
+	    }
 
-			 int respuestaCreacionConsumo = jdbcTemplateEjecucion.update(sql,
-						new Object[] { 
-								percodigo,
-								tipoServicioActual,
-								consumo.getPersona().getCodigo(), 
-								consumo.getVenta().getCodigo(),
-								consumo.getTipoServicio().getCodigo(),
-								consumo.getContrato().getCodigo(),
-								consumo.getDependencia().getCodigo(), 
-								consumo.getEstado(),
-								consumo.getFecha(), 
-								consumo.getHora() });
-			 
-			 
-				if (respuestaCreacionConsumo > 0) {
-					this.desactivarTiqueteVenta(respuestaCreacionConsumo, ventaMasReciente.get(0), username);
-					return percodigo;
-				} else {
-					return 0;
-				}
+	    int percodigo = Integer.parseInt(datosQr[0]);
+	    String fechaHoraCliente = datosQr[1];
+
+	    Boolean isQRValido = this.validarQR(fechaHoraCliente);
+
+	    if (!isQRValido) {
+	        return -2;
+	    }
+
+	    String[] fechaHoraActualFormateada = this.ObtenerFechaHoraActualFormateada();
+
+	    String fechaFormateada = fechaHoraActualFormateada[0];
+	    String horaFormateada = fechaHoraActualFormateada[1];
+
+	    List<Contrato> contratoVigente = this.obtenerContratoVigente(username, uaaCodigo);
+
+	    if (contratoVigente.isEmpty()) {
+	        return -3;
+	    }
+
+	    List<HorarioServicio> horarioServicio = this.horarioServicioService.obtenerHorarioServicio(username, uaaCodigo);
+
+	    if (horarioServicio.isEmpty()) {
+	        return -6;
+	    }
+
+	    int tipoServicioActual = obtenerTipoServicioActual(uaaCodigo);
+
+	    if (tipoServicioActual == -8) {
+	        return -8;
+	    }
+
+	    List<Venta> ventaMasReciente = this.ventaService.obtenerVentasByPerCodigo(username, percodigo,
+	            contratoVigente.get(0).getCodigo());
+
+	    if (ventaMasReciente.isEmpty()) {
+	        return -4;
+	    }
+
+	    Boolean isFechaVentaVigente = this.validarFechaTiqueteVenta(ventaMasReciente.get(0));
+
+	    if (!isFechaVentaVigente) {
+	        return -7;
+	    }
+
+        String sql = "IF NOT EXISTS ( "
+                + "SELECT 1 "
+                + "FROM sibusco.restaurante_consumo "
+                + "WHERE per_codigo = ? "
+                + "AND rts_codigo = ? "
+                + "AND rcn_fecha = CONVERT(DATE, GETDATE()) "
+                + ") "
+                + "BEGIN "
+                + "INSERT INTO sibusco.restaurante_consumo "
+                + "(per_codigo, rve_codigo, rts_codigo, rco_codigo, uaa_codigo, rcn_estado, rcn_fecha, rcn_hora) "
+                + "VALUES(?, ?, ?, ?, ?, ?, ?, ?) "
+                + "END";
+	    
+	    try (Connection connection = getDataSourceFromJdbcTemplate().getConnection();
+	             PreparedStatement pstmt = connection.prepareStatement(sql)){
+
+	        connection.setAutoCommit(false); // desactiva el auto-commit para manejar transacciones manualmente
+
+	        // ahora creo un consumo y asocio la venta al consumo creado, acto seguido
+	        // desactivo dicha venta
+	        Consumo consumo = this.crearConsumo(ventaMasReciente.get(0), contratoVigente, uaaCodigo, fechaFormateada,
+	                horaFormateada, percodigo, tipoServicioActual, username);
 
 
-		} catch (Exception e) {
-			e.printStackTrace();
-			return -1000;
-		}
+	        pstmt.setInt(1, percodigo);
+	        pstmt.setInt(2, tipoServicioActual);
+	        pstmt.setLong(3, consumo.getPersona().getCodigo());
+	        pstmt.setInt(4, consumo.getVenta().getCodigo());
+	        pstmt.setInt(5, consumo.getTipoServicio().getCodigo());
+	        pstmt.setInt(6, consumo.getContrato().getCodigo());
+	        pstmt.setInt(7, consumo.getDependencia().getCodigo());
+	        pstmt.setInt(8, consumo.getEstado());
+	        pstmt.setDate(9, consumo.getFecha());
+	        pstmt.setTime(10, consumo.getHora());
+
+	        int respuestaCreacionConsumo = pstmt.executeUpdate();
+
+	        if (respuestaCreacionConsumo > 0) {
+	            this.desactivarTiqueteVenta(respuestaCreacionConsumo, ventaMasReciente.get(0), username);
+	            connection.commit(); // si todo va bien, haz commit de la transacción
+	            return percodigo;
+	        } else {
+	            connection.rollback(); // deshacer la transacción en caso de error
+	            return 0;
+	        }
+
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	        return -1000;
+	    }
 	}
+
 	
 	private Boolean validarFechaTiqueteVenta(Venta venta) {
 	    
@@ -410,22 +419,37 @@ public class ConsumoDaoImpl implements IConsumoDao {
 
 	@Override
 	public int actualizarConsumo(String userdb, Consumo consumo) {
-		
-		String sql = "UPDATE sibusco.restaurante_consumo " + "SET rcn_estado=? " + "WHERE rcn_codigo=?";
 
-		try {
+	    String sql = "UPDATE sibusco.restaurante_consumo "
+	            + "SET rcn_estado = ? "
+	            + "WHERE rcn_codigo = ?";
 
-			int result = jdbcTemplateEjecucion.update(sql, new Object[] { 
-					consumo.getEstado(),
-					consumo.getCodigo(), });
+	    try (Connection connection = getDataSourceFromJdbcTemplate().getConnection();
+	             PreparedStatement pstmt = connection.prepareStatement(sql)){
+	    	
+	        connection.setAutoCommit(false); // Desactivar auto-commit para manejar transacciones manualmente
 
-			return result;
+	        // Asignar los parámetros
+	        pstmt.setInt(1, consumo.getEstado());
+	        pstmt.setInt(2, consumo.getCodigo());
 
-		} catch (Exception e) {
-			e.printStackTrace();
-			return 0;
-		}
+	        // Ejecutar la actualización
+	        int affectedRows = pstmt.executeUpdate();
+
+	        if (affectedRows > 0) {
+	            connection.commit(); // Hacer commit de la transacción si todo fue exitoso
+	            return affectedRows;
+	        } else {
+	            connection.rollback(); // Hacer rollback si no se actualiza ninguna fila
+	            return 0;
+	        }
+
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	        return 0;
+	    }
 	}
+
 	
 	private void cerrarConexion(Connection con) {
 		if (con == null)
@@ -441,83 +465,81 @@ public class ConsumoDaoImpl implements IConsumoDao {
 
 	@Override
 	public List<Long> cargarConsumos(String userdb, List<Consumo> consumos) {
-		String sql = 
-			    "DECLARE @perCodigo INT; " +
-			    "DECLARE @codigoVenta INT; " +
-			    "SET @perCodigo = (SELECT e.per_codigo FROM estudiante e WHERE e.est_codigo = :estudianteCodigo); " +
-			    "IF @perCodigo IS NULL " +
-			    "BEGIN " +
-			    "    SET @perCodigo = (SELECT p.per_codigo FROM persona p WHERE p.per_identificacion = :id); " +
-			    "END " +
-			    "SET @codigoVenta = ( " +
-			    "    SELECT rev.rve_codigo " +
-			    "    FROM sibusco.restaurante_venta rev " +
-			    "    INNER JOIN dbo.persona p ON p.per_codigo = rev.per_codigo " +
-			    "    INNER JOIN sibusco.restaurante_tipo_servicio rts ON rts.rts_codigo = rev.rts_codigo " +
-			    "    INNER JOIN sibusco.restaurante_contrato rc ON rc.rco_codigo = rev.rco_codigo " +
-			    "    INNER JOIN sibusco.restaurante_tipo_contrato rtc ON rtc.rtc_codigo = rc.rtc_codigo " +
-			    "    INNER JOIN dbo.uaa u ON u.uaa_codigo = rev.uaa_codigo " +
-			    "    WHERE rev.per_codigo = @perCodigo AND rev.rco_codigo = :contrato AND rev.rve_fecha = :fecha " +
-			    "    AND rev.rts_codigo = :tipoServicio AND rev.uaa_codigo = :uaa AND rev.rve_estado = 1 " +
-			    " 	 ); " +
-			    "IF @perCodigo IS NOT NULL " +
-			    "BEGIN " +
-			    "      IF @codigoVenta IS NOT NULL " +
-			    "      BEGIN " +
-			    "			UPDATE sibusco.restaurante_venta " +
-			    "			SET rve_estado= 0 " +
-			    "			WHERE rve_codigo=@codigoVenta " +
-			    "           INSERT INTO sibusco.restaurante_consumo " +
-			    "           (per_codigo, rve_codigo, rts_codigo, rco_codigo, uaa_codigo, rcn_estado, rcn_fecha, rcn_hora) " +
-			    "           VALUES (@perCodigo, @codigoVenta, :tipoServicio, :contrato, :uaa, :estado, :fecha, :hora) " +
-			    "      END " +
-			    "END; "; 
+	    List<Long> registrosErrados = new ArrayList<>();
 
-			    
+	    String sql = 
+	        "DECLARE @perCodigo INT; " +
+	        "DECLARE @codigoVenta INT; " +
+	        "SET @perCodigo = (SELECT e.per_codigo FROM estudiante e WHERE e.est_codigo = ?); " +
+	        "IF @perCodigo IS NULL " +
+	        "BEGIN " +
+	        "    SET @perCodigo = (SELECT p.per_codigo FROM persona p WHERE p.per_identificacion = ?); " +
+	        "END " +
+	        "SET @codigoVenta = ( " +
+	        "    SELECT rev.rve_codigo " +
+	        "    FROM sibusco.restaurante_venta rev " +
+	        "    INNER JOIN dbo.persona p ON p.per_codigo = rev.per_codigo " +
+	        "    INNER JOIN sibusco.restaurante_tipo_servicio rts ON rts.rts_codigo = rev.rts_codigo " +
+	        "    INNER JOIN sibusco.restaurante_contrato rc ON rc.rco_codigo = rev.rco_codigo " +
+	        "    INNER JOIN sibusco.restaurante_tipo_contrato rtc ON rtc.rtc_codigo = rc.rtc_codigo " +
+	        "    INNER JOIN dbo.uaa u ON u.uaa_codigo = rev.uaa_codigo " +
+	        "    WHERE rev.per_codigo = @perCodigo AND rev.rco_codigo = ? AND rev.rve_fecha = ? " +
+	        "    AND rev.rts_codigo = ? AND rev.uaa_codigo = ? AND rev.rve_estado = 1 " +
+	        "    ); " +
+	        "IF @perCodigo IS NOT NULL " +
+	        "BEGIN " +
+	        "      IF @codigoVenta IS NOT NULL " +
+	        "      BEGIN " +
+	        "           UPDATE sibusco.restaurante_venta " +
+	        "           SET rve_estado = 0 " +
+	        "           WHERE rve_codigo = @codigoVenta; " +
+	        "           INSERT INTO sibusco.restaurante_consumo " +
+	        "           (per_codigo, rve_codigo, rts_codigo, rco_codigo, uaa_codigo, rcn_estado, rcn_fecha, rcn_hora) " +
+	        "           VALUES (@perCodigo, @codigoVenta, ?, ?, ?, ?, ?, ?) " +
+	        "      END " +
+	        "END;";
 
-	    try {
-	        SqlParameterSource[] batchParams = consumos.stream()
-	                .map(consumo -> new MapSqlParameterSource()
-	                        .addValue("estudianteCodigo", consumo.getPersona().getIdentificacion())
-	                        .addValue("id", consumo.getPersona().getIdentificacion())
-	                        .addValue("tipoServicio", consumo.getTipoServicio().getCodigo())
-	                        .addValue("contrato", consumo.getContrato().getCodigo())
-	                        .addValue("uaa", consumo.getDependencia().getCodigo())
-	                        .addValue("estado", consumo.getEstado())
-	                        .addValue("fecha", consumo.getFecha())
-	                        .addValue("hora", consumo.getHora())
-	                		)
-	                .toArray(SqlParameterSource[]::new);
+	    try (Connection connection = getDataSourceFromJdbcTemplate().getConnection();
+	             PreparedStatement pstmt = connection.prepareStatement(sql)){
 
-	        int[] updateCounts = jdbc.batchUpdate(sql, batchParams);
+	        connection.setAutoCommit(false); // Desactivar auto-commit para manejar transacciones manualmente
+
+	        // Ejecutar el batch de actualizaciones
+	        for (Consumo consumo : consumos) {
+	            pstmt.setString(1, consumo.getPersona().getIdentificacion());
+	            pstmt.setString(2, consumo.getPersona().getIdentificacion());
+	            pstmt.setInt(3, consumo.getTipoServicio().getCodigo());
+	            pstmt.setInt(4, consumo.getContrato().getCodigo());
+	            pstmt.setInt(5, consumo.getDependencia().getCodigo());
+	            pstmt.setInt(6, consumo.getEstado());
+	            pstmt.setDate(7, consumo.getFecha());
+	            pstmt.setTime(8, consumo.getHora());
+
+	            pstmt.addBatch();
+	        }
+
+	        int[] updateCounts = pstmt.executeBatch();
 
 	        // Contar inserciones insatisfactorias
 	        int totalUnsuccessful = 0;
 	        int totalSuccessful = 0;
-	        List<Long> registrosErrados = new ArrayList<>();
-	        
+
 	        for (int i = 0; i < updateCounts.length; i++) {
-	        	int count = updateCounts[i];
-	        	
+	            int count = updateCounts[i];
+
 	            if (count < 0) {
 	                totalUnsuccessful++;
-	                registrosErrados.add(Long.parseLong(consumos.get(Math.abs(i)).getPersona().getIdentificacion()));
+	                registrosErrados.add(Long.parseLong(consumos.get(i).getPersona().getIdentificacion()));
 	            } else {
-	            	totalSuccessful++;
+	                totalSuccessful++;
 	            }
 	        }
-	      
 
+	        connection.commit(); // Hacer commit de la transacción si todo fue exitoso
 	        return registrosErrados;
 	    } catch (Exception e) {
 	        e.printStackTrace();
-	        return null; // Devuelve el número total de ventas si ocurre una excepción
-	    } finally {
-	        try {
-	            cerrarConexion(dataSource.getConnection());
-	        } catch (SQLException e) {
-	            e.printStackTrace();
-	        }
+	        return null; // Devuelve null si ocurre una excepción
 	    }
 	}
 

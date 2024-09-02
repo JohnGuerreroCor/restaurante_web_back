@@ -1,6 +1,5 @@
 package com.usco.edu.restController;
 
-
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,11 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.usco.edu.entities.Consumo;
 import com.usco.edu.entities.Qr;
 import com.usco.edu.service.IConsumoService;
-import com.usco.edu.service.IContratoService;
-import com.usco.edu.service.IHorarioServicioService;
-import com.usco.edu.service.IPersonaService;
-import com.usco.edu.service.IVentaService;
-import com.usco.edu.service.IWebParametroService;
 import com.usco.edu.service.serviceImpl.EncrypDecryptService;
 
 @RestController
@@ -28,21 +22,6 @@ public class ConsumoRestController {
 
 	@Autowired
 	private IConsumoService consumoService;
-
-	@Autowired
-	private IContratoService contratoService;
-
-	@Autowired
-	private IVentaService ventaService;
-
-	@Autowired
-	private IHorarioServicioService horarioServicioService;
-
-	@Autowired
-	private IWebParametroService webParametroService;
-
-	@Autowired
-	private IPersonaService personaService;
 
 	@Autowired
 	EncrypDecryptService customRSAService;
@@ -56,6 +35,11 @@ public class ConsumoRestController {
 	@GetMapping(path = "obtener-consumos-diarios/{codigoTipoServicio}/{CodigoContrato}")
 	public int obtenerConsumosDiarios(@PathVariable int codigoTipoServicio, @PathVariable int CodigoContrato) {
 		return consumoService.obtenerConsumosDiarios(codigoTipoServicio, CodigoContrato);
+	}
+	
+	@GetMapping(path = "obtener-consumos-diarios-gabus/{codigoTipoServicio}/{CodigoContrato}")
+	public int obtenerConsumosDiariosGabus(@PathVariable int codigoTipoServicio, @PathVariable int CodigoContrato) {
+		return consumoService.obtenerConsumosDiariosGabus(codigoTipoServicio, CodigoContrato);
 	}
 
 	@PutMapping(path = "actualizar-consumo/{username}")

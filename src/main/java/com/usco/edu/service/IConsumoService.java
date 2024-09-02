@@ -11,6 +11,8 @@ public interface IConsumoService {
 	
 	public int obtenerConsumosDiarios(int tipoServicio, int codigoContrato);
 
+	public int obtenerConsumosDiariosGabus(int tipoServicio, int codigoContrato);
+
 	public int registrarConsumo(String username, int uaaCodigo, Qr qr);
 	
 	public List<Long> cargarConsumos(String userdb, List<Consumo> consumos);

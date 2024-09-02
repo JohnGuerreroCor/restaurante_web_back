@@ -14,7 +14,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
-import org.springframework.stereotype.Service;
 
 import com.usco.edu.dao.IDiaBeneficioDao;
 import com.usco.edu.entities.DiaBeneficio;
@@ -38,8 +37,8 @@ public class DiaBeneficioDaoImpl implements IDiaBeneficioDao {
 				+ "INNER JOIN dbo.dia d on rdb.dia_codigo  = d.dia_codigo "
 				+ "INNER JOIN sibusco.restaurante_tipo_servicio rts on rdb.rts_codigo = rts.rts_codigo "
 				+ "INNER JOIN sibusco.restaurante_tipo_gabu rtg ON rgg.rtg_codigo = rtg.rtg_codigo "
-				+ "INNER JOIN dbo.persona p on rgg.per_codigo = p.per_codigo " + "WHERE rdb.rgg_codigo = "
-				+ idGrupoGabu + " AND rdb.rdb_estado = 1";
+				+ "INNER JOIN dbo.persona p on rgg.per_codigo = p.per_codigo " + "WHERE rdb.rgg_codigo = " + idGrupoGabu
+				+ " AND rdb.rdb_estado = 1";
 		return jdbcTemplate.query(sql, new DiaBeneficioSetExtractor());
 	}
 
@@ -59,16 +58,13 @@ public class DiaBeneficioDaoImpl implements IDiaBeneficioDao {
 		DataSource dataSource = jdbcComponent.construirDataSourceDeUsuario(userdb);
 		NamedParameterJdbcTemplate jdbc = jdbcComponent.construirTemplatenew(dataSource);
 
-		String sql = "UPDATE sibusco.restaurante_dias_beneficio "
-				+ "SET rdb_estado=:estado "
-				+ "WHERE rgg_codigo=:codigoGrupoGabu "
-				+ "AND dia_codigo=:diaCodigo "
-				+ "AND rts_codigo=:tipoServicio ";
+		String sql = "UPDATE sibusco.restaurante_dias_beneficio " + "SET rdb_estado=:estado "
+				+ "WHERE rgg_codigo=:codigoGrupoGabu " + "AND dia_codigo=:diaCodigo " + "AND rts_codigo=:tipoServicio ";
 
 		try {
 
 			MapSqlParameterSource parameter = new MapSqlParameterSource();
-		
+
 			parameter.addValue("estado", diasBeneficio.getEstado());
 			parameter.addValue("codigoGrupoGabu", diasBeneficio.getCodigoGrupoGabu());
 			parameter.addValue("diaCodigo", diasBeneficio.getDia().getCodigo());
@@ -88,7 +84,6 @@ public class DiaBeneficioDaoImpl implements IDiaBeneficioDao {
 			}
 		}
 	}
-	
 
 	@Override
 	public int crearDiaBeneficio(String userdb, DiaBeneficio diasBeneficio) {

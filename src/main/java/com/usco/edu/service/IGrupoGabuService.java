@@ -3,7 +3,6 @@ package com.usco.edu.service;
 import java.util.List;
 
 import com.usco.edu.entities.GrupoGabu;
-import com.usco.edu.entities.GrupoGabuDiasBeneficio;
 
 public interface IGrupoGabuService {
 

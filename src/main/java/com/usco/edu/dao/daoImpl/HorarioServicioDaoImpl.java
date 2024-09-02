@@ -17,7 +17,6 @@ import org.springframework.stereotype.Repository;
 
 import com.usco.edu.dao.IHorarioServicioDao;
 import com.usco.edu.entities.HorarioServicio;
-import com.usco.edu.entities.TipoServicio;
 import com.usco.edu.resultSetExtractor.HorarioServicioSetExtractor;
 import com.usco.edu.util.AuditoriaJdbcTemplate;
 
