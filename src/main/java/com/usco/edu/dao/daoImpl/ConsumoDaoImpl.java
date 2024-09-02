@@ -82,6 +82,7 @@ public class ConsumoDaoImpl implements IConsumoDao {
 				+ "WHERE "
 				+ "	rcn.per_codigo = ? "
 				+ "	AND rcn.rco_codigo = ? "
+				+ " AND rcn.rcn_fecha = CONVERT(DATE, GETDATE()) " //Validacion fecha del dia de hoy! 
 				+ "	AND rcn.rcn_estado = 1;";
 		return jdbcTemplate.query(sql, new Object[]{codigoPersona, codigoContrato}, new ConsumoSetExtractor());
 	}
