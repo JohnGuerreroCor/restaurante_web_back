@@ -7,8 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.usco.edu.service.serviceImpl.CustomRSAServiceImpl;
-import com.usco.edu.service.serviceImpl.EncryptDecryptServiceImpl;
+import com.usco.edu.service.serviceImpl.EncrypDecryptService;
 
 import java.math.BigInteger;
 import java.security.KeyPair;
@@ -20,10 +19,7 @@ import java.util.Date;
 public class ApiRestController {
 
 	@Autowired
-	EncryptDecryptServiceImpl encryptDecryptServiceImpl;
-
-	@Autowired
-	CustomRSAServiceImpl customRSAService;
+	EncrypDecryptService customAESService;
 
 	private static KeyPair keyPair; // Almacena el par de claves
 
@@ -46,15 +42,8 @@ public class ApiRestController {
 		return true;
 	}
 
-	@GetMapping("/createKeys")
-	public void createPrivatePublickey() {
-		encryptDecryptServiceImpl.createKeys();
-	}
-
 	@PostMapping("/encrypt")
 	public String encryptMessage(@RequestBody String plainString) {
-
-		System.out.println("Agregando time signature");
 
 		Date fechaHoraActual = new Date();
 
@@ -66,24 +55,18 @@ public class ApiRestController {
 
 		// Encriptar el mensaje
 		BigInteger message = new BigInteger(plainString.getBytes());
-		System.out.println("-----------------------------------------------------------------");
-		BigInteger encryptedMessage = customRSAService.encrypt(message);
-		System.out.println("Mensaje encriptado BIGINTEGER: " + encryptedMessage);
-		System.out.println("Mensaje encriptado STRING: " + encryptedMessage.toString());
-		System.out.println("-----------------------------------------------------------------");
+		BigInteger encryptedMessage = customAESService.encrypt(message);
 
 		// Desencriptar el mensaje encriptado
-		BigInteger decryptedMessage = customRSAService.decrypt(encryptedMessage);
-		System.out.println("Mensaje desencriptado: " + decryptedMessage);
+		BigInteger decryptedMessage = customAESService.decrypt(encryptedMessage);
 		String decryptedString = new String(decryptedMessage.toByteArray());
-		System.out.println("Mensaje desencriptado como cadena: " + decryptedString);
 		return encryptedMessage.toString(); // Convertir el mensaje encriptado a una cadena y retornarlo
 
 	}
 
 	@PostMapping("/decrypt")
 	public String decryptMessage(@RequestBody String encryptString) {
-		return customRSAService.decrypt(new BigInteger(encryptString)).toString(); // Decrypt the message
+		return customAESService.decrypt(new BigInteger(encryptString)).toString(); // Decrypt the message
 	}
 
 }

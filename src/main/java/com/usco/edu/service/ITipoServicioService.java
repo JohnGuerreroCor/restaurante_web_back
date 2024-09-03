@@ -11,4 +11,5 @@ public interface ITipoServicioService {
 	int actualizarTipoServicio(String userdb, TipoServicio tipoServicio);
 
 	int crearTipoServicio(String userdb, TipoServicio tipoServicio);
+	
 }

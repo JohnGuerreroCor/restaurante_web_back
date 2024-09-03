@@ -10,4 +10,6 @@ public interface IEstudianteDao {
 	
 	public List<Estudiante> buscarIdentificacion(String id);
 	
+	public List<Estudiante> buscarPerCodigo(int perCodigo);
+	
 }

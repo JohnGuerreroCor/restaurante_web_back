@@ -19,6 +19,7 @@ public class VentaRowMapper implements RowMapper<Venta> {
 		venta.setEstado(rs.getInt("rve_estado"));
 		venta.setHora(rs.getTime("rve_hora"));
 		venta.setFecha(rs.getDate("rve_fecha"));
+		venta.setEliminado(rs.getInt("rve_eliminado"));
 		return venta;
 	}
 

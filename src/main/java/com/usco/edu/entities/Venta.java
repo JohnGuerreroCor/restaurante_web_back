@@ -19,6 +19,7 @@ public class Venta implements Serializable {
     private int estado;
     private Time hora;
     private Date fecha;
+    private int eliminado;
 
     private static final long serialVersionUID = 1L;
 }

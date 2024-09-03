@@ -12,7 +12,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.usco.edu.dao.IWebParametroDao;
-import com.usco.edu.entities.Venta;
 import com.usco.edu.entities.WebParametro;
 import com.usco.edu.resultSetExtractor.WebParametroSetExtractor;
 

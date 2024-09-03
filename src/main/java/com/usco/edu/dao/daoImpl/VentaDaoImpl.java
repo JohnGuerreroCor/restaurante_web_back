@@ -3,9 +3,7 @@ package com.usco.edu.dao.daoImpl;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import javax.sql.DataSource;
@@ -13,26 +11,14 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
-import org.springframework.stereotype.Service;
 
 import com.usco.edu.dao.IVentaDao;
-import com.usco.edu.entities.DiaBeneficio;
 import com.usco.edu.entities.Venta;
-import com.usco.edu.resultSetExtractor.HorarioServicioSetExtractor;
 import com.usco.edu.resultSetExtractor.VentaSetExtractor;
-import com.usco.edu.util.AuditoriaJdbcTemplate;
 
 @Repository
 public class VentaDaoImpl implements IVentaDao {
-
-	@Autowired
-	private AuditoriaJdbcTemplate jdbcComponent;
 
 	@Autowired
 	@Qualifier("JDBCTemplateConsulta")
@@ -42,11 +28,11 @@ public class VentaDaoImpl implements IVentaDao {
 	@Qualifier("JDBCTemplateEjecucion")
 	public JdbcTemplate jdbcTemplateEjecucion;
 	
-	@Autowired
-	private NamedParameterJdbcTemplate jdbc; // Add this line to autowire NamedParameterJdbcTemplate
-
-	@Autowired
-	private DataSource dataSource; // Add this line to autowire DataSource
+	
+    // Añadir método para obtener DataSource de JdbcTemplateEjecucion
+    private DataSource getDataSourceFromJdbcTemplate() {
+        return jdbcTemplateEjecucion.getDataSource();
+    }
 
 	@Override
 	public List<Venta> obtenerVentasByPerCodigo(String userdb, int codigoPersona, int codigoContrato) {
@@ -55,21 +41,39 @@ public class VentaDaoImpl implements IVentaDao {
 				+ "INNER JOIN sibusco.restaurante_tipo_servicio rts ON rts.rts_codigo = rev.rts_codigo "
 				+ "INNER JOIN sibusco.restaurante_contrato rc ON rc.rco_codigo = rev.rco_codigo "
 				+ "INNER JOIN sibusco.restaurante_tipo_contrato rtc ON rtc.rtc_codigo = rc.rtc_codigo "
-				+ "INNER JOIN dbo.uaa u ON u.uaa_codigo = rev.uaa_codigo " + "WHERE rev.per_codigo = " + codigoPersona
-				+ " " + "AND rev.rco_codigo = " + codigoContrato + " AND rev.rve_estado = 1 "
-				+ "ORDER BY rev.rve_fecha ASC";
-		return jdbcTemplate.query(sql, new VentaSetExtractor());
+				+ "INNER JOIN dbo.uaa u ON u.uaa_codigo = rev.uaa_codigo " + "WHERE rev.per_codigo = ? " 
+				+ " " + "AND rev.rco_codigo = ? AND rev.rve_estado = 1 " 
+				+ "AND rev.rve_fecha = CONVERT(DATE, GETDATE()) " + " AND rev.rve_eliminado = 1 " //rev.rve_fecha = CONVERT(DATE, GETDATE()) valida fecha dia de hoy
+				+ "ORDER BY rev.rve_fecha DESC";
+		return jdbcTemplate.query(sql, new Object[]{codigoPersona, codigoContrato}, new VentaSetExtractor());
 	}
 	
 	@Override
-	public int obtenerVentasDiarias(int tipoServicio, int codigoContrato) {
+	public int obtenerVentasDiariasOrdinarias(int tipoServicio, int codigoContrato) {
 		String sql = "SELECT COUNT(*) AS cantidad_registros FROM sibusco.restaurante_venta rv "
-				+ " WHERE rv.rts_codigo = " + tipoServicio
-				+ " AND rv.rco_codigo = " + codigoContrato
-				+ " AND rv.rve_estado = 1 "
+		        + "	LEFT JOIN sibusco.restaurante_grupo_gabu rgg ON rv.per_codigo = rgg.per_codigo "
+		        + "	WHERE rv.rts_codigo = ? "
+		        + " AND rv.rve_eliminado = 1 "
+		        + " AND rv.rco_codigo = ? "
+		        + " AND rv.rve_fecha = CONVERT(DATE, GETDATE()) "
+		        + " AND rgg.per_codigo IS NULL";
+
+		
+		int cantidadRegistros = jdbcTemplate.queryForObject(sql,new Object[]{tipoServicio, codigoContrato}, Integer.class);
+		
+		return cantidadRegistros;
+	}
+	
+	@Override
+	public int obtenerVentasDiariasGabus(int tipoServicio, int codigoContrato) {
+		String sql = "SELECT COUNT(*) AS cantidad_registros FROM sibusco.restaurante_venta rv "
+				+ " INNER JOIN sibusco.restaurante_grupo_gabu rgg ON rv.per_codigo = rgg.per_codigo "
+				+ " WHERE rv.rts_codigo = ? "
+				+ " AND rv.rve_eliminado = 1 "
+				+ " AND rv.rco_codigo = ? "
 				+ " AND rv.rve_fecha = CONVERT(DATE, GETDATE())";
 		
-		int cantidadRegistros = jdbcTemplate.queryForObject(sql, Integer.class);
+		int cantidadRegistros = jdbcTemplate.queryForObject(sql,new Object[]{tipoServicio, codigoContrato}, Integer.class);
 		
 		return cantidadRegistros;
 	}
@@ -77,7 +81,8 @@ public class VentaDaoImpl implements IVentaDao {
 	
 	@Override
 	public int registrarVentas(String userdb, List<Venta> ventas) {
-	    // Evitar la concatenación directa de valores en el SQL para prevenir inyección SQL
+	    int totalInserted = 0; // Inicializa el contador para el recuento total de inserciones
+
 	    String sql = "DECLARE @cantidad_tiquetes INT; "
 	            + "SELECT @cantidad_tiquetes = rhs_cantidad_tiquetes "
 	            + "FROM sibusco.restaurante_horario_servicio rhs "
@@ -88,12 +93,13 @@ public class VentaDaoImpl implements IVentaDao {
 	            + "    WHERE rv.per_codigo = ? "
 	            + "    AND rv.rts_codigo = ? "
 	            + "    AND rv.rve_estado = ? "
+	            + "    AND rv.rve_fecha = CONVERT(DATE, GETDATE()) " //rev.rve_fecha = CONVERT(DATE, GETDATE()) valida fecha día de hoy
 	            + ") < @cantidad_tiquetes "
 	            + "BEGIN "
 	            + "    INSERT INTO sibusco.restaurante_venta "
-	            + "        (per_codigo, rts_codigo, rco_codigo, uaa_codigo, rve_estado, rve_fecha, rve_hora) "
+	            + "        (per_codigo, rts_codigo, rco_codigo, uaa_codigo, rve_estado, rve_fecha, rve_hora, rve_eliminado) "
 	            + "    VALUES "
-	            + "        (?, ?, ?, ?, ?, CONVERT(DATE, GETDATE()), CONVERT(TIME, GETDATE())); "
+	            + "        (?, ?, ?, ?, ?, CONVERT(DATE, GETDATE()), CONVERT(TIME, GETDATE()), ?); "
 	            + "    SELECT 1; "
 	            + "END "
 	            + "ELSE "
@@ -101,56 +107,103 @@ public class VentaDaoImpl implements IVentaDao {
 	            + "    SELECT 0; "
 	            + "END";
 
-	    int totalInserted = 0; // Inicializa el contador para el recuento total de inserciones
+	    try (Connection connection = getDataSourceFromJdbcTemplate().getConnection();
+	             PreparedStatement pstmt = connection.prepareStatement(sql)){
+	        
+	        connection.setAutoCommit(false); // Desactivar auto-commit para manejar transacciones manualmente
 
-	    try {
-	        // Utiliza PreparedStatement para evitar inyección SQL
-	        PreparedStatement preparedStatement = jdbcTemplateEjecucion.getDataSource().getConnection().prepareStatement(sql);
+	        // Preparar el PreparedStatement con la conexión
+	        
 	        for (Venta venta : ventas) {
-	            // Establece los parámetros en el PreparedStatement
-	            preparedStatement.setInt(1, venta.getDependencia().getCodigo());
-	            preparedStatement.setInt(2, venta.getTipoServicio().getCodigo());
-	            preparedStatement.setLong(3, venta.getPersona().getCodigo());
-	            preparedStatement.setInt(4, venta.getTipoServicio().getCodigo());
-	            preparedStatement.setInt(5, venta.getEstado());
-	            preparedStatement.setLong(6, venta.getPersona().getCodigo());
-	            preparedStatement.setInt(7, venta.getTipoServicio().getCodigo());
-	            preparedStatement.setInt(8, venta.getContrato().getCodigo());
-	            preparedStatement.setInt(9, venta.getDependencia().getCodigo());
-	            preparedStatement.setInt(10, venta.getEstado());
+	            // Establecer los parámetros en el PreparedStatement
+	            pstmt.setInt(1, venta.getDependencia().getCodigo());
+	            pstmt.setInt(2, venta.getTipoServicio().getCodigo());
+	            pstmt.setLong(3, venta.getPersona().getCodigo());
+	            pstmt.setInt(4, venta.getTipoServicio().getCodigo());
+	            pstmt.setInt(5, venta.getEstado());
+	            pstmt.setLong(6, venta.getPersona().getCodigo());
+	            pstmt.setInt(7, venta.getTipoServicio().getCodigo());
+	            pstmt.setInt(8, venta.getContrato().getCodigo());
+	            pstmt.setInt(9, venta.getDependencia().getCodigo());
+	            pstmt.setInt(10, venta.getEstado());
+	            pstmt.setInt(11, venta.getEliminado());
 
-	            // Ejecuta la consulta preparada
-	            int result = preparedStatement.executeUpdate();
-	            totalInserted += result; // Agrega el resultado de la inserción al contador total
+	            // Ejecutar la consulta preparada
+	            int result = pstmt.executeUpdate();
+	            totalInserted += result; // Agregar el resultado de la inserción al contador total
 	        }
-	    } catch (SQLException e) {
-	        // Maneja las excepciones adecuadamente
-	        e.printStackTrace();
-	        return 0;
-	    }
 
-	    // Retorna el recuento total de inserciones exitosas
-	    return totalInserted;
+	        connection.commit(); // Hacer commit de la transacción si todo fue exitoso
+	        return totalInserted;
+
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	        return 0; // Retorna 0 en caso de excepción
+	    }
 	}
+
 
 
 
 	@Override
 	public int actualizarVenta(String userdb, Venta venta) {
+	    int result = 0;
 
-		String sql = "UPDATE sibusco.restaurante_venta " + "SET rve_estado=? " + "WHERE rve_codigo=?";
+	    String sql = "UPDATE sibusco.restaurante_venta "
+	               + "SET rve_estado = ? "
+	               + "WHERE rve_codigo = ?";
 
-		try {
+	    try (Connection connection = getDataSourceFromJdbcTemplate().getConnection();
+	             PreparedStatement pstmt = connection.prepareStatement(sql)){
+	        connection.setAutoCommit(false); // Desactivar auto-commit para manejar transacciones manualmente
 
-			int result = jdbcTemplateEjecucion.update(sql, new Object[] { venta.getEstado(), venta.getCodigo(), });
+	        // Establecer los parámetros en el PreparedStatement
+	        pstmt.setInt(1, venta.getEstado());
+	        pstmt.setInt(2, venta.getCodigo());
 
-			return result;
+	        // Ejecutar la consulta preparada
+	        result = pstmt.executeUpdate();
 
-		} catch (Exception e) {
-			e.printStackTrace();
-			return 0;
-		}
+	        connection.commit(); // Hacer commit de la transacción si todo fue exitoso
+	        return result;
+
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	        return 0; // Retorna 0 en caso de excepción
+	    }
 	}
+
+	
+	@Override
+	public int eliminarVenta(String userdb, Venta venta) {
+	    int result = 0;
+
+	    String sql = "UPDATE sibusco.restaurante_venta "
+	               + "SET rve_estado = ?, rve_eliminado = ? "
+	               + "WHERE rve_codigo = ?";
+
+	    try (Connection connection = getDataSourceFromJdbcTemplate().getConnection();
+	             PreparedStatement pstmt = connection.prepareStatement(sql)){
+
+	        connection.setAutoCommit(false); // Desactivar auto-commit para manejar transacciones manualmente
+
+	        // Establecer los parámetros en el PreparedStatement
+	        pstmt.setInt(1, venta.getEstado());
+	        pstmt.setInt(2, venta.getEliminado());
+	        pstmt.setInt(3, venta.getCodigo());
+
+	        // Ejecutar la consulta preparada
+	        result = pstmt.executeUpdate();
+
+	        connection.commit(); // Hacer commit de la transacción si todo fue exitoso
+	        return result;
+
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	        return 0; // Retorna 0 en caso de excepción
+	    }
+	}
+
 
 	private void cerrarConexion(Connection con) {
 		if (con == null)
@@ -166,72 +219,69 @@ public class VentaDaoImpl implements IVentaDao {
 
 	@Override
 	public List<Long> cargarVentas(String userdb, List<Venta> ventas) {
+	    List<Long> registrosErrados = new ArrayList<>();
+	    int totalUnsuccessful = 0;
+	    int totalSuccessful = 0;
+
 	    String sql = "DECLARE @perCodigo INT; "
-	            + "SET @perCodigo = (SELECT e.per_codigo FROM estudiante e WHERE e.est_codigo = :estudianteCodigo); "
-	            + "IF @perCodigo IS NULL "
-	            + "BEGIN "
-	            + "    SET @perCodigo = (SELECT p.per_codigo FROM persona p WHERE p.per_identificacion = :id); "
-	            + "    IF @perCodigo IS NOT NULL "
-	            + "    BEGIN "
-	            + "        INSERT INTO sibusco.restaurante_venta "
-	            + "            (per_codigo, rts_codigo, rco_codigo, uaa_codigo, rve_estado, rve_fecha, rve_hora) "
-	            + "        VALUES "
-	            + "            (@perCodigo, :tipoServicio, :contrato, :uaa, :estado, :fecha, :hora); "
-	            + "    END "
-	            + "END "
-	            + "ELSE "
-	            + "    INSERT INTO sibusco.restaurante_venta "
-	            + "        (per_codigo, rts_codigo, rco_codigo, uaa_codigo, rve_estado, rve_fecha, rve_hora) "
-	            + "    VALUES "
-	            + "        (@perCodigo, :tipoServicio, :contrato, :uaa, :estado, :fecha, :hora);";
+	               + "SET @perCodigo = (SELECT e.per_codigo FROM estudiante e WHERE e.est_codigo = ?); "
+	               + "IF @perCodigo IS NULL "
+	               + "BEGIN "
+	               + "    SET @perCodigo = (SELECT p.per_codigo FROM persona p WHERE p.per_identificacion = ?); "
+	               + "    IF @perCodigo IS NOT NULL "
+	               + "    BEGIN "
+	               + "        INSERT INTO sibusco.restaurante_venta "
+	               + "            (per_codigo, rts_codigo, rco_codigo, uaa_codigo, rve_estado, rve_fecha, rve_hora) "
+	               + "        VALUES "
+	               + "            (@perCodigo, ?, ?, ?, ?, ?, ?); "
+	               + "    END "
+	               + "END "
+	               + "ELSE "
+	               + "    INSERT INTO sibusco.restaurante_venta "
+	               + "        (per_codigo, rts_codigo, rco_codigo, uaa_codigo, rve_estado, rve_fecha, rve_hora) "
+	               + "    VALUES "
+	               + "        (@perCodigo, ?, ?, ?, ?, ?, ?);";
 
-	    try {
-	        SqlParameterSource[] batchParams = ventas.stream()
-	                .map(venta -> new MapSqlParameterSource()
-	                        .addValue("estudianteCodigo", venta.getPersona().getIdentificacion())
-	                        .addValue("id", venta.getPersona().getIdentificacion())
-	                        .addValue("tipoServicio", venta.getTipoServicio().getCodigo())
-	                        .addValue("contrato", venta.getContrato().getCodigo())
-	                        .addValue("uaa", venta.getDependencia().getCodigo())
-	                        .addValue("estado", venta.getEstado())
-	                        .addValue("fecha", venta.getFecha())
-	                        .addValue("hora", venta.getHora())
-	                		)
-	                .toArray(SqlParameterSource[]::new);
+	    try (Connection connection = getDataSourceFromJdbcTemplate().getConnection();
+	             PreparedStatement pstmt = connection.prepareStatement(sql)){
+	        connection.setAutoCommit(false); // Desactivar auto-commit para manejar transacciones manualmente
 
-	        int[] updateCounts = jdbc.batchUpdate(sql, batchParams);
+	        for (Venta venta : ventas) {
+	            // Establecer los parámetros en el PreparedStatement
+	            pstmt.setString(1, venta.getPersona().getIdentificacion()); // estudianteCodigo
+	            pstmt.setString(2, venta.getPersona().getIdentificacion()); // id
+	            pstmt.setInt(3, venta.getTipoServicio().getCodigo()); // tipoServicio
+	            pstmt.setInt(4, venta.getContrato().getCodigo()); // contrato
+	            pstmt.setInt(5, venta.getDependencia().getCodigo()); // uaa
+	            pstmt.setInt(6, venta.getEstado()); // estado
+	            pstmt.setDate(7, venta.getFecha()); // fecha
+	            pstmt.setTime(8, venta.getHora()); // hora
 
-	        // Contar inserciones insatisfactorias
-	        int totalUnsuccessful = 0;
-	        int totalSuccessful = 0;
-	        List<Long> registrosErrados = new ArrayList<>();
-	        
-	        for (int i = 0; i < updateCounts.length; i++) {
-	        	int count = updateCounts[i];
-	        	
-	            if (count < 0) {
+	            // Ejecutar la consulta preparada
+	            int result = pstmt.executeUpdate();
+
+	            if (result < 1) {
 	                totalUnsuccessful++;
-	                registrosErrados.add(Long.parseLong(ventas.get(Math.abs(i)).getPersona().getIdentificacion()));
+	                registrosErrados.add(Long.parseLong(venta.getPersona().getIdentificacion()));
 	            } else {
-	            	totalSuccessful++;
+	                totalSuccessful++;
 	            }
 	        }
-	        
-	        System.out.println(totalUnsuccessful);
-	        System.out.println(totalSuccessful);
 
-	        return registrosErrados;
-	    } catch (Exception e) {
+	        connection.commit(); // Hacer commit de la transacción si todo fue exitoso
+
+	    } catch (SQLException e) {
 	        e.printStackTrace();
-	        return null; // Devuelve el número total de ventas si ocurre una excepción
-	    } finally {
-	        try {
-	            cerrarConexion(dataSource.getConnection());
-	        } catch (SQLException e) {
-	            e.printStackTrace();
-	        }
+	        return null; // Devuelve null en caso de excepción
 	    }
+
+	    // Mostrar el conteo de inserciones exitosas y no exitosas
+	    System.out.println("Total no exitosos: " + totalUnsuccessful);
+	    System.out.println("Total exitosos: " + totalSuccessful);
+
+	    return registrosErrados;
 	}
+
 
 
 }

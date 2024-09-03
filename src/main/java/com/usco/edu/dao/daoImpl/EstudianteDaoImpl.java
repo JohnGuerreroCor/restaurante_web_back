@@ -107,5 +107,50 @@ public class EstudianteDaoImpl implements IEstudianteDao{
 		return jdbcTemplate.query(sql, new EstudianteSetExtractor());
 		
 	}
+	
+	@Override
+	public List<Estudiante> buscarPerCodigo(int perCodigo) {
+		
+		String sql = "DECLARE @per_codigo VARCHAR(50) = '" + perCodigo + "'; " +
+	             "DECLARE @matricula_actual INT;\n" +
+	             "\n" +
+	             "-- Obtener el valor de @matricula_actual\n" +
+	             "SET @matricula_actual = (\n" +
+	             "    SELECT wep_valor\n" +
+	             "    FROM web_parametro\n" +
+	             "    WHERE wep_nombre = 'MATRICULA_PREGRADO_CALENDARIO_ACTUAL'\n" +
+	             ");\n" +
+	             "\n" +
+	             "-- Verificar si @matricula_actual es mayor que 1\n" +
+	             "IF @matricula_actual > 1\n" +
+	             "BEGIN\n" +
+	             "    SELECT *, \n" +
+	             "           FLOOR((CAST(CONVERT(VARCHAR(8), GETDATE(), 112) AS INT) - CAST(CONVERT(VARCHAR(8), per.per_fecha_nacimiento, 112) AS INT)) / 10000) AS edad\n" +
+	             "    FROM estudiante e\n" +
+	             "    INNER JOIN persona per ON e.per_codigo = per.per_codigo\n" +
+	             "    INNER JOIN programa pro ON e.pro_codigo = pro.pro_codigo\n" +
+	             "    INNER JOIN uaa u ON pro.uaa_codigo = u.uaa_codigo\n" +
+	             "    INNER JOIN sede s ON pro.sed_codigo = s.sed_codigo\n" +
+	             "    INNER JOIN grupo_sanguineo gs ON per.grs_codigo = gs.grs_codigo\n" +
+	             "    INNER JOIN tipo_id ti ON per.tii_codigo = ti.tii_codigo\n" +
+	             "    INNER JOIN dbo.nivel_academico na ON na.nia_codigo = pro.nia_codigo\n" +
+	             "    INNER JOIN dbo.formalidad f ON f.for_codigo = na.for_codigo\n" +
+	             "    INNER JOIN dbo.matricula m ON m.est_codigo = e.est_codigo\n" +
+	             "    INNER JOIN dbo.calendario c ON c.cal_codigo = m.cal_codigo\n" +
+	             "    INNER JOIN dbo.periodo p ON p.per_codigo = c.per_codigo\n" +
+	             "    WHERE per.per_codigo = @per_codigo\n" +
+	             "      AND c.cal_codigo = @matricula_actual\n" +
+	             "      AND f.for_codigo = 1\n" +
+	             "    ORDER BY per_fecha_inicio DESC;\n" +
+	             "END\n" +
+	             "ELSE\n" +
+	             "BEGIN\n" +
+	             "    SELECT 0;\n" +
+	             "END;";
+
+
+		return jdbcTemplate.query(sql, new EstudianteSetExtractor());
+		
+	}
 
 }

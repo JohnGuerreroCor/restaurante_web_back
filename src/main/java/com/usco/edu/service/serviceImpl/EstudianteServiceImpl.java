@@ -28,4 +28,9 @@ public class EstudianteServiceImpl implements IEstudianteService{
 		
 	}
 
+	@Override
+	public List<Estudiante> buscarPerCodigo(int perCodigo) {
+		return estudianteDao.buscarPerCodigo(perCodigo);
+	}
+
 }

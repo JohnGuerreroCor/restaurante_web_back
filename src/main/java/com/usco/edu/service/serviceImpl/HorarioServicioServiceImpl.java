@@ -35,4 +35,9 @@ public class HorarioServicioServiceImpl implements IHorarioServicioService {
 		return horarioServicioDao.actualizarHorarioServicio(userdb, horarioServicio);
 	}
 
+	@Override
+	public HorarioServicio obtenerTipoServicioActual(int uaa) {
+		return horarioServicioDao.obtenerTipoServicioActual(uaa);
+	}
+
 }

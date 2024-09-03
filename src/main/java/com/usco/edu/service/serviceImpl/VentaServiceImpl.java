@@ -21,8 +21,13 @@ public class VentaServiceImpl implements IVentaService {
 	}
 
 	@Override
-	public int obtenerVentasDiarias(int tipoServicio, int codigoContrato) {
-		return VentaDao.obtenerVentasDiarias(tipoServicio, codigoContrato);
+	public int obtenerVentasDiariasOrdinarias(int tipoServicio, int codigoContrato) {
+		return VentaDao.obtenerVentasDiariasOrdinarias(tipoServicio, codigoContrato);
+	}
+	
+	@Override
+	public int obtenerVentasDiariasGabus(int tipoServicio, int codigoContrato) {
+		return VentaDao.obtenerVentasDiariasGabus(tipoServicio, codigoContrato);
 	}
 	
 	@Override
@@ -38,6 +43,11 @@ public class VentaServiceImpl implements IVentaService {
 	@Override
 	public List<Long> cargarVentas(String userdb, List<Venta> ventas) {
 		return VentaDao.cargarVentas(userdb, ventas);
+	}
+
+	@Override
+	public int eliminarVenta(String userdb, Venta venta) {
+		return VentaDao.eliminarVenta(userdb, venta);
 	}
 
 }
