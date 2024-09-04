@@ -74,7 +74,8 @@ public class RestauranteDaoImpl implements IRestauranteDao {
 		
 		String sql = "WITH ConsumoPorRestaurante AS "
 				+ "(SELECT rc.uaa_codigo, rc.rcn_fecha, rc.rts_codigo, COUNT(*) AS consumo FROM sibusco.restaurante_consumo rc "
-				+ "WHERE rc.uaa_codigo = " + restauranteSedeCodigo + " and rc.rcn_fecha = CONVERT(DATE, GETDATE()) "
+				+ "left join sibusco.restaurante_grupo_gabu rgg on rc.per_codigo = rgg.per_codigo "
+				+ "WHERE rc.uaa_codigo = " + restauranteSedeCodigo + " and rc.rcn_fecha = CONVERT(DATE, GETDATE()) and rgg.per_codigo IS NULL "
 				+ "GROUP BY rc.uaa_codigo, rc.rcn_fecha, rc.rts_codigo) "
 				+ "SELECT rhs.rts_codigo, rts.rts_nombre, rhs.rhs_uaa_codigo, rs.uaa_nombre, rhs.rhs_cantidad_comidas, "
 				+ "consumo, rhs.rhs_cantidad_comidas - c.consumo AS raciones_disponibles, rhs.rhs_hora_inicio_atencion, "
@@ -83,6 +84,7 @@ public class RestauranteDaoImpl implements IRestauranteDao {
 				+ "INNER JOIN sibusco.restaurante_tipo_servicio rts on rhs.rts_codigo = rts.rts_codigo "
 				+ "INNER JOIN sibusco.restaurante_sede rs on rhs.rhs_uaa_codigo = rs.uaa_codigo "
 				+ "WHERE CONVERT(TIME, GETDATE()) BETWEEN rhs.rhs_hora_inicio_atencion AND rhs.rhs_hora_fin_atencion";
+		
 		return jdbcTemplate.query(sql, new RestauranteRacionesSetExtractor());
 		
 	}
@@ -93,7 +95,8 @@ public class RestauranteDaoImpl implements IRestauranteDao {
 		String sql = "WITH VentaPorRestaurante AS "
 				+ "(SELECT rhs.rhs_uaa_codigo, rv.rts_codigo, COUNT(rv.rve_codigo) AS ventas FROM sibusco.restaurante_horario_servicio rhs "
 				+ "INNER JOIN sibusco.restaurante_venta rv ON rhs.rhs_uaa_codigo = rv.uaa_codigo and rv.rve_fecha = CONVERT(DATE, GETDATE()) "
-				+ "WHERE rhs.rhs_uaa_codigo = " + restauranteSedeCodigo + " AND (CONVERT(TIME, GETDATE()) BETWEEN rhs.rhs_hora_inicio_venta AND rhs.rhs_hora_fin_atencion) "
+				+ "left join sibusco.restaurante_grupo_gabu rgg on rv.per_codigo = rgg.per_codigo "
+				+ "WHERE rhs.rhs_uaa_codigo = " + restauranteSedeCodigo + " AND (CONVERT(TIME, GETDATE()) BETWEEN rhs.rhs_hora_inicio_venta AND rhs.rhs_hora_fin_atencion and rv.rve_eliminado != 0 AND rgg.per_codigo IS NULL) "
 				+ "GROUP BY rhs.rhs_uaa_codigo, rv.rts_codigo) "
 				+ "SELECT rhs.rts_codigo, rts.rts_nombre, rhs.rhs_uaa_codigo, rs.uaa_nombre, rhs.rhs_cantidad_ventas_permitidas, "
 				+ "ventas, rhs.rhs_cantidad_ventas_permitidas - v.ventas AS tiquetes_disponibles, rhs.rhs_hora_inicio_venta, "
@@ -102,6 +105,7 @@ public class RestauranteDaoImpl implements IRestauranteDao {
 				+ "INNER JOIN sibusco.restaurante_tipo_servicio rts on rhs.rts_codigo = rts.rts_codigo "
 				+ "INNER JOIN sibusco.restaurante_sede rs on rhs.rhs_uaa_codigo = rs.uaa_codigo "
 				+ "WHERE CONVERT(TIME, GETDATE()) BETWEEN rhs.rhs_hora_inicio_atencion AND rhs.rhs_hora_fin_atencion;";
+		
 		return jdbcTemplate.query(sql, new RestauranteTiquetesSetExtractor());
 		
 	}
